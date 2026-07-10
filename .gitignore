@@ -1,0 +1,13 @@
+/*
+!/.gitignore
+!/README.pages.md
+!/index.html
+!/site
+!/lit-review
+/lit-review/*
+!/lit-review/main.pdf
+!/out
+/out/*
+!/out/PANEL.md
+!/out/PITCH.md
+!/out/dossiers

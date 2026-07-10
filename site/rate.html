@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rate these matches · The Research Router</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --card: #ffffff;
+    --text: #1c1c1c;
+    --muted: #5c5c56;
+    --line: #dedad2;
+    --accent: #2f5d8a;
+    --accent-soft: #e3edf6;
+    --accent-text: #234a70;
+    --lock: #8a6d2f;
+    --lock-soft: #f6efdd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171b;
+      --card: #1f2127;
+      --text: #e7e5e0;
+      --muted: #a3a19a;
+      --line: #383b43;
+      --accent: #7aa7d4;
+      --accent-soft: #263646;
+      --accent-text: #a8c8e8;
+      --lock: #d4b26a;
+      --lock-soft: #33301f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    font-size: 16px;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 .35rem; }
+  h2 { font-size: 1.25rem; margin: 3rem 0 .5rem; }
+  h3 { font-size: 1.05rem; margin: 0 0 .15rem; }
+  h4 { font-size: .95rem; margin: 1.1rem 0 .25rem; }
+  p { margin: .6rem 0; }
+  .sub { color: var(--muted); font-size: .95rem; }
+  .intro p { max-width: 42rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem 1.2rem;
+    margin: 1rem 0;
+  }
+  .aff { color: var(--muted); font-size: .92rem; margin: 0 0 .5rem; }
+  .areas { margin: .4rem 0 .6rem; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .35rem; }
+  .areas li {
+    font-size: .82rem;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .12rem .6rem;
+  }
+  .papers { margin: .3rem 0 .9rem; padding-left: 1.1rem; font-size: .92rem; }
+  .papers li { margin: .15rem 0; }
+  .papers .yr { color: var(--muted); }
+  fieldset { border: 0; padding: 0; margin: .75rem 0 0; }
+  legend { font-size: .92rem; font-weight: 600; padding: 0; margin-bottom: .35rem; }
+  .opts { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .opts label {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .3rem .8rem;
+    font-size: .9rem;
+    cursor: pointer;
+    user-select: none;
+    background: transparent;
+  }
+  .opts input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .opts label:has(input:checked) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .opts label:hover { border-color: var(--accent); }
+  textarea {
+    width: 100%;
+    min-height: 3.2rem;
+    margin-top: .35rem;
+    padding: .5rem .65rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: .92rem;
+    resize: vertical;
+  }
+  textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .locked .opts label { cursor: default; opacity: .65; }
+  .locked .opts label:hover { border-color: var(--line); }
+  .locked .opts label:has(input:checked) { opacity: 1; }
+  #progress {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: .5rem 0;
+    font-size: .9rem;
+    color: var(--muted);
+  }
+  #continueBox {
+    border: 1px solid var(--lock);
+    background: var(--lock-soft);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+  }
+  #lockedNote {
+    border-left: 3px solid var(--lock);
+    padding: .4rem .9rem;
+    margin: 1.5rem 0;
+    color: var(--muted);
+    font-size: .92rem;
+  }
+  button {
+    font: inherit;
+    font-size: .95rem;
+    font-weight: 600;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: .55rem 1.1rem;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  button.ghost { background: transparent; color: var(--accent-text); }
+  button:disabled { opacity: .5; cursor: default; }
+  .guide { border-left: 3px solid var(--accent); }
+  .guide .thesis { font-size: .95rem; }
+  .guide h4 { color: var(--accent-text); }
+  .joint { font-size: .92rem; border-top: 1px dashed var(--line); padding-top: .6rem; margin-top: 1rem; }
+  .hidden { display: none; }
+  #sendNote { font-size: .9rem; color: var(--muted); }
+  .btnrow { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0 .4rem; }
+  #copied { font-size: .9rem; color: var(--accent-text); }
+  @media (max-width: 480px) {
+    main { padding: 1.5rem .9rem 4rem; }
+    .card { padding: .9rem .9rem 1rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header class="intro">
+    <h1>Rate these matches</h1>
+    <p class="sub">The Research Router · for Elaine Shi · about 15 minutes</p>
+    <p>Elaine,</p>
+    <p>James built an engine that walks the coauthorship graph and proposes researchers worth an hour of your time. Before he trusts it, he wants to calibrate it against your judgment. You are the ground truth here.</p>
+    <p>Below are 11 researchers. Some came out of the engine and some are baselines mixed in for comparison. We won't say which is which until after you answer, since knowing would defeat the test. For each person, two quick questions: do you know them, and would you want the hour? A sentence on why is helpful but optional.</p>
+    <p>When all 11 are rated, a second part appears with four discussion guides the engine drafted. Those tell us whether it understood the work, not just the graph. Your answers save in this browser as you type, so you can close the tab and come back.</p>
+  </header>
+
+  <div id="progress">Part 1: 0 of 11 rated</div>
+
+  <h2>Part 1: the candidates</h2>
+  <p class="sub">Blind ratings. Same format for everyone: who they are, what they work on, two representative papers.</p>
+
+  <section id="cards"></section>
+
+  <div id="continueBox" class="hidden">
+    <p><strong>All 11 rated.</strong> Continuing locks your part 1 answers. The guides in part 2 name four of the candidates and argue for them, and we don't want that to color the blind ratings you just gave.</p>
+    <button id="continueBtn" type="button">Lock part 1 and continue</button>
+  </div>
+
+  <div id="lockedNote" class="hidden">Part 1 is locked. Your blind ratings are recorded below in the results.</div>
+
+  <section id="part2" class="hidden">
+    <h2>Part 2: the discussion guides</h2>
+    <p class="sub">The engine drafted a one-hour agenda for four of the candidates above, grounded in specific papers. Each guide condenses to a few threads and a possible joint paper. Two questions per guide: did it get the work right, and would the agenda be worth the hour?</p>
+
+    <div id="guides"></div>
+
+    <h2>Send your results</h2>
+    <p id="sendNote">Copy puts your answers on the clipboard; paste them into an email to barnes.james@gmail.com. The mail-app button tries to prefill the email for you, but the results run long and some mail apps truncate long prefilled drafts, so copy and paste is the reliable route.</p>
+    <div class="btnrow">
+      <button id="copyBtn" type="button">Copy results</button>
+      <button id="sendBtn" type="button" class="ghost">Open in mail app</button>
+      <span id="copied" class="hidden">Copied to clipboard.</span>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var CANDIDATES = [
+    {
+      id: "papernot",
+      name: "Nicolas Papernot",
+      aff: "University of Toronto and Vector Institute",
+      areas: ["Adversarial machine learning", "Differentially private learning (PATE, DP-SGD)", "Machine unlearning", "Threat models for ML systems"],
+      papers: [
+        { t: "Practical Black-Box Attacks against Machine Learning", y: 2017 },
+        { t: "Machine Unlearning", y: 2021 }
+      ]
+    },
+    {
+      id: "qin",
+      name: "Zhan Qin",
+      aff: "Zhejiang University",
+      areas: ["Local differential privacy systems", "Encrypted cloud data and secure outsourcing", "Leakage mitigation in encrypted stores", "Adversarial ML and watermarking"],
+      papers: [
+        { t: "Heavy Hitter Estimation over Set-Valued Data with Local Differential Privacy", y: 2016 },
+        { t: "SWAT: A System-Wide Approach to Tunable Leakage Mitigation in Encrypted Data Stores", y: 2024 }
+      ]
+    },
+    {
+      id: "lou",
+      name: "Wenjing Lou",
+      aff: "Virginia Tech",
+      areas: ["Cloud storage security and public auditing", "Wireless and network security", "Spectrum sharing and 5G security", "Privacy-preserving computation"],
+      papers: [
+        { t: "Privacy-Preserving Public Auditing for Data Storage Security in Cloud Computing", y: 2010 },
+        { t: "Achieving Secure, Scalable, and Fine-grained Data Access Control in Cloud Computing", y: 2010 }
+      ]
+    },
+    {
+      id: "cormode",
+      name: "Graham Cormode",
+      aff: "University of Warwick",
+      areas: ["Streaming algorithms and sketches (count-min)", "Local differential privacy in practice", "Federated analytics and synthetic data", "Private data summarization"],
+      papers: [
+        { t: "An improved data stream summary: the count-min sketch and its applications", y: 2004 },
+        { t: "Marginal Release Under Local Differential Privacy", y: 2018 }
+      ]
+    },
+    {
+      id: "fang",
+      name: "Junbin Fang",
+      aff: "Jinan University (Guangzhou)",
+      areas: ["Experimental quantum key distribution", "Quantum Byzantine agreement and blockchain consensus", "Private set operations and secure inference", "Visible light communication and digital forensics"],
+      papers: [
+        { t: "An improved quantum solution to the detectable byzantine problem", y: 2025 },
+        { t: "Decoy state semi-quantum key distribution", y: 2023 }
+      ]
+    },
+    {
+      id: "zanella",
+      name: "Santiago Zanella-Béguelin",
+      aff: "Microsoft Research Cambridge",
+      areas: ["Verified cryptographic implementations (Everest, TLS 1.3)", "Confidential AI on attested hardware", "LLM privacy attacks", "Machine-checked differential privacy proofs"],
+      papers: [
+        { t: "EverCrypt: A Fast, Verified, Cross-Platform Cryptographic Provider", y: 2020 },
+        { t: "Analyzing Leakage of Personally Identifiable Information in Language Models", y: 2023 }
+      ]
+    },
+    {
+      id: "garg",
+      name: "Deepak Garg",
+      aff: "Max Planck Institute for Software Systems (Saarbrücken)",
+      areas: ["Information-flow type systems", "Foundational verification of C and machine code", "Secure compilation", "TEE and MPC data analytics"],
+      papers: [
+        { t: "RefinedC: automating the foundational verification of C code with refined ownership types", y: 2021 },
+        { t: "Journey Beyond Full Abstraction: Exploring Robust Property Preservation for Secure Compilation", y: 2019 }
+      ]
+    },
+    {
+      id: "shokri",
+      name: "Reza Shokri",
+      aff: "National University of Singapore",
+      areas: ["Membership inference and privacy auditing", "Quantifying location privacy", "Privacy risks of model explanations", "Federated learning privacy"],
+      papers: [
+        { t: "Membership Inference Attacks Against Machine Learning Models", y: 2017 },
+        { t: "Quantifying Location Privacy", y: 2011 }
+      ]
+    },
+    {
+      id: "jia",
+      name: "Ruoxi Jia",
+      aff: "Virginia Tech",
+      areas: ["Data valuation (Data Shapley)", "Data poisoning and backdoor defenses", "LLM safety and alignment", "Differential privacy in ML"],
+      papers: [
+        { t: "Towards Efficient Data Valuation Based on the Shapley Value", y: 2019 },
+        { t: "Fine-tuning Aligned Language Models Compromises Safety, Even When Users Do Not Intend To!", y: 2023 }
+      ]
+    },
+    {
+      id: "jha",
+      name: "Somesh Jha",
+      aff: "University of Wisconsin–Madison",
+      areas: ["Adversarial machine learning", "Malware detection and program analysis", "Formal methods for security", "Privacy in machine learning"],
+      papers: [
+        { t: "Semantics-aware malware detection", y: 2005 },
+        { t: "Privacy Risk in Machine Learning: Analyzing the Connection to Overfitting", y: 2018 }
+      ]
+    },
+    {
+      id: "strub",
+      name: "Pierre-Yves Strub",
+      aff: "PQShield",
+      areas: ["Machine-checked cryptographic proofs (EasyCrypt)", "Probabilistic couplings for differential privacy", "High-assurance crypto implementations (Jasmin)", "Post-quantum verification"],
+      papers: [
+        { t: "Proving Differential Privacy via Probabilistic Couplings", y: 2016 },
+        { t: "Jasmin: High-Assurance and High-Speed Cryptography", y: 2017 }
+      ]
+    }
+  ];
+
+  var KNOW_OPTS = ["Never heard of them", "Know the work", "Have met", "Know them well"];
+  var HOUR_OPTS = ["Definitely", "Maybe", "Not interested"];
+  var ACC_OPTS = ["Accurate", "Minor errors", "Significant errors"];
+  var WORTH_OPTS = ["Yes", "Maybe", "No"];
+
+  var GUIDES = [
+    {
+      id: "fang",
+      name: "Junbin Fang",
+      aff: "Jinan University (Guangzhou)",
+      thesis: "What do quantum channels actually buy against Byzantine faults? You have spent a decade mapping the feasibility frontier of Byzantine agreement: which thresholds, round complexities, and costs are achievable under which setup assumptions (PKI, random oracles, proof-of-work, trusted hardware). Fang approaches the same problem from a physics lab: entanglement-based protocols for the detectable Byzantine problem, quantum consensus mechanisms for blockchains, and a genuine experimental QKD program. One correction the draft makes to the engine's framing: the headline 2024 photonic QBA experiment in Science Advances is by a different (Nanjing) group. Fang's own Byzantine line is protocol papers; his experimental record sits in QKD (the first semi-quantum key distribution experiment, decoy-state semi-QKD toward 150 km, an 8.4 Gbps quantum random number generator). So the pairing is rigorous theory meets protocol designer with a photonics lab, not theory meets an already-demonstrated QBA testbed.",
+      threads: [
+        {
+          h: "Placing entanglement in your setup-assumption hierarchy",
+          p: "His 2025 detectable-Byzantine paper presents the classical impossibility and the quantum escape in one breath. But the classical one-third bound his protocols evade only binds without signatures; with a PKI, classical broadcast tolerates any number of faults. The honest statement of what entanglement buys is signature-like power, information-theoretically, without a PKI, in the abort-allowed relaxation. Nobody has written the paper that places quantum channels precisely in the hierarchy your lower bounds are parameterized by: against your adversary classes (static, adaptive, strongly adaptive, full-information), does entanglement behave like a PKI, like a random oracle, like trusted hardware, or like something genuinely new? You have the taxonomy; he has the protocols that need placing. The strongest thread, and the core of the pairing."
+        },
+        {
+          h: "Quantum channels as physical non-equivocation",
+          p: "Your PODC 2022 non-equivocation work built the frame for pricing a physical assumption: can non-equivocation compile any asynchronous crash-fault protocol into a Byzantine-tolerant one? Fang's teleportation-consensus paper claims unconditional security and resistance to a 51% attack, claims your community would demand a model for: against which adversary, with what network assumptions, at what scale? The discussion writes itself: is an entangled channel a non-equivocation primitive, and if so does your compiler immediately characterize what his consensus mechanisms achieve and what they cannot? Honest asymmetry: his consensus papers live in optics journals with informal security arguments, and your framework is precisely the missing rigor. That gap is the collaboration, but only if he wants his protocols audited rather than celebrated."
+        },
+        {
+          h: "After-the-fact removal and no-cloning",
+          p: "Your subquadratic-BA lower bound turns on whether the adversary can erase a message an honest node already sent. That power gets physically strange when messages are qubits: a message in flight cannot be copied, and intercepting it disturbs it. Does a quantum channel make after-the-fact removal detectable or outright impossible, and would that let subquadratic BA survive the strongly adaptive adversaries your lower bound covers? Speculative: no published work on either side, but each of you holds one half of the machinery. His lab's engineering numbers (entanglement visibility around 83% over 10 km of fiber, 248 ms compensation times) are the noise reality any honest quantum-adversary model has to absorb."
+        },
+        {
+          h: "The overlap that looks biggest on paper and matters least: leakage",
+          p: "His strongest mainstream-crypto result is a leakage-free private set operations framework accepted to IEEE S&P 2026, and his TFHE secure-inference line borders your MPC and oblivious-computation work. But leakage is your home ground, where your own network is deeper than his. Worth ten minutes at the start of the meeting as an on-ramp and credibility check, not the agenda."
+        }
+      ],
+      joint: "If you collaborated: the headline target is \"What Do Quantum Resources Buy in Byzantine Agreement?\", a model paper that places entanglement-based detectable broadcast and teleportation-style consensus inside your adversary taxonomy, proves separations from classical setup assumptions where they exist, and gives the first rigorous analysis of his protocols, with a small photonic validation from his lab. The main risk is appetite in both directions: your published trajectory is entirely classical, and his quantum consensus papers have so far lived happily without the adversary models you would insist on."
+    },
+    {
+      id: "papernot",
+      name: "Nicolas Papernot",
+      aff: "University of Toronto and Vector Institute",
+      thesis: "The proofs machine unlearning keeps asking for. Papernot's security-of-ML program has spent five years discovering, paper by paper, that its hardest open problems are cryptography problems: unlearning needs audits, his group's proof-of-learning admits it chose to forgo cryptographic approaches and then breaks, PATE-style collaboration borrows MPC off the shelf. You build exactly the missing machinery: verifiable-computation compilers, secure aggregation with untrusted servers, and differential obliviousness for the one channel (memory access patterns) his threat models do not cover. Zero mutual citations across roughly 500 combined papers. Honest caveat from the panel: discovery value is low, about 3.5 out of 10. You share the S&P/CCS circuit and strong mutual collaborators (Tramèr, Xiao Wang), so treat this as a concrete agenda for a pairing that is easy to arrange, not a hidden gem.",
+      threads: [
+        {
+          h: "Verifiable unlearning: his definition, your provers",
+          p: "His SISA paper (S&P 2021) created the modern unlearning problem; his own follow-up showed unlearning is only well-defined at the algorithmic level, where the only auditable claim is that a scrutinizable algorithm was run; and his verifiable-unlearning line then walks straight into your field, asking a server to prove which dataset a model was trained on. That needs efficient proofs about training-sized computations, which is the exact bottleneck your xJsnark attacks. The synthesis question: SISA's shard-and-checkpoint structure was designed to make retraining cheap. Can the same structure make proving cheap? A SNARK over a full training run is hopeless today; a SNARK over one shard's constituent models, chained through SISA's checkpoints, might not be. Neither side has written that paper."
+        },
+        {
+          h: "PATE's noisy aggregator is a problem you solved in 2011",
+          p: "PATE's privacy comes from one operation, a noisy vote among teachers, and whoever runs that vote is trusted. His CaPC paper concedes the multi-party case needs MPC and homomorphic encryption. Your Privacy-Preserving Stream Aggregation with Fault Tolerance published the abstract primitive a decade earlier, your MicroSecAgg brings it to federated learning in three rounds, and your lower bound says that without cryptographic help the additive error must be on the order of the square root of n. The synthesis question: a purpose-built secure noisy-argmax for teacher votes rather than a general-purpose MPC stack, plus the theory question your lower bound sets up: what is the optimal error and communication tradeoff for voting, not summation, under an untrusted aggregator?"
+        },
+        {
+          h: "The access-pattern channel, and a leak inside SISA",
+          p: "His threat-model SoK stops at the algorithm's inputs and outputs; your memory-trace obliviousness line names the channel underneath. For DP training the relaxation is a matched pair: the model is already only (ε, δ)-private, so making the training-time access pattern (ε, δ)-oblivious spends the same currency, and the two budgets should compose into one statement. The concrete hook, which is the draft's own observation rather than either group's: an unlearning request triggers retraining of precisely the shard containing the deleted point, so anyone watching the training infrastructure learns which shard held the user's data at the exact moment the user asked to be forgotten. A differentially oblivious unlearning scheduler that pads or randomizes which shards get touched is a small sharp paper."
+        },
+        {
+          h: "Deletion as a stream (speculative)",
+          p: "Unlearning requests arrive over time, and each updated model release leaks something about what changed; his Unrolling SGD measures single-shot forgetting but nobody prices the sequence of releases. You co-invented the tool for pricing sequences: private continual release with error poly-logarithmic in the number of time steps, recently extended to continual observation of joins. Whether the binary-tree mechanism's tricks transfer from counters to model updates is genuinely unclear, which is what makes it a discussion topic rather than a plan."
+        }
+      ],
+      joint: "If you collaborated: something like \"Oblivious Unlearning: Hiding Deletions from the Machines That Execute Them\", combining the SISA access-pattern leak, a differentially oblivious retraining scheduler, and SISA-checkpoint-aligned succinct proofs of deletion compliance. Venue-shaped for S&P or CCS. The lower-risk second project is the secure noisy-argmax for PATE."
+    },
+    {
+      id: "strub",
+      name: "Pierre-Yves Strub",
+      aff: "PQShield",
+      thesis: "Machine-checked proofs for the two properties you keep proving by hand: obliviousness and differential obliviousness. Strub's probabilistic relational Hoare logics and the coupling method inside EasyCrypt were built for differential privacy and provable-security reductions. Differential obliviousness is a DP-style relational property, and ORAM security is a simulation argument, so your central objects are exactly the kind of intricate, probability-heavy proofs his tools were made to mechanize. He also co-leads Jasmin, whose constant-time verification is the machine-level cousin of obliviousness. Honest note on discovery: this is a strong technical fit but not a surprising connection. Your former student Xiong Fan and your collaborator Jonathan Katz are co-authors with him on EasyPQC, and you have both been CCS/S&P/CRYPTO regulars for over a decade. The reason to make the introduction is a specific joint artifact, not graph distance.",
+      threads: [
+        {
+          h: "Mechanizing differential obliviousness, especially its composition theorems",
+          p: "The sharpest fit. Your group found that plain DO does not compose, introduced neighbor-preserving DO, and then had to chase the advanced composition theorem to get the square-root-of-k loss that standard DP enjoys. Advanced composition proofs are exactly the class his coupling papers single out as beyond the reach of composition-theorem-based verification tools, and his approximate-coupling machinery already handles advanced composition for DP. The synthesis question: can the NPDO advanced-composition theorem, and the DO proofs for your Adore database operators (selection, grouping, foreign-key join), be mechanized in EasyCrypt? Same relational property, same composition pain point, tool already built."
+        },
+        {
+          h: "Machine-checked ORAM and OPRAM, where hand proofs have a track record of subtlety",
+          p: "ORAM proofs are delicate simulation arguments over randomized data structures: Path ORAM's bandwidth bound, your perfectly secure OPRAM, and OptORAMa's tower of sub-protocols where one mis-stated invariant sinks the argument. His Mechanized Proofs of Adversarial Complexity adds the ingredient ORAM-style simulation arguments need, reasoning about the resources of adversaries and simulators, and his group has carried non-toy MPC protocol proofs end to end. The synthesis question is which ORAM is the right first target. Bucket Oblivious Sort is the honest pick: self-contained, advertised by you as conceptually simple, and a building block of OptORAMa. Caveat: a full OPRAM proof is a large formalization effort, so the realistic near-term artifact is a single primitive, not the whole tower."
+        },
+        {
+          h: "Jasmin-verified oblivious implementations: obliviousness meets constant-time",
+          p: "Obliviousness hides the access-pattern channel; Jasmin's constant-time verification hides the timing and cache channel. You each attack one of the two leakage channels a deployed primitive has. His group delivered a SHA-3 that is simultaneously efficient, correct, provably secure, and side-channel protected in Jasmin and EasyCrypt. The same pipeline pointed at an oblivious primitive, say a verified constant-time Bucket Oblivious Sort or an oblivious stack from your differentially oblivious data-structure line, would be a genuinely new object: one implementation carrying both an access-pattern proof and a timing proof. This is the most concrete deliverable of the four threads."
+        },
+        {
+          h: "The post-quantum bridge is the social hop, not the strongest technical one",
+          p: "The tempting angle is his PQShield verification of Kyber and SPHINCS+, plus EasyPQC, which extended EasyCrypt to quantum attackers and is literally the one-hop path to you (Xiong Fan and Jonathan Katz are co-authors). But the technical overlap is thinner than the first three threads: your ORAM and DO work is not lattice cryptography. Worth raising as the warmest introduction route, and because oblivious data structures will eventually want post-quantum encryption underneath. The icebreaker, not the joint project."
+        }
+      ],
+      joint: "If you collaborated: the plausible first paper is \"Machine-Checked Differential Obliviousness: Mechanizing the NPDO Composition Theorems in EasyCrypt\". The higher-effort follow-on is a Jasmin-verified oblivious primitive carrying both an access-pattern proof and a constant-time proof in one artifact. Bucket Oblivious Sort is the natural pilot for either direction: simple enough to actually finish, load-bearing enough that verifying it matters."
+    },
+    {
+      id: "garg",
+      name: "Deepak Garg",
+      aff: "Max Planck Institute for Software Systems (Saarbrücken)",
+      thesis: "Obliviousness meets his proof stack. You build oblivious algorithms and the compilers that emit them (ObliVM, Viaduct); Garg builds the machinery that says whether such artifacts are actually correct (information-flow type systems, foundational C verification, MPC compiler fuzzing) and runs CoVault, a TEE-plus-MPC analytics platform whose inner loop is exactly the oblivious data processing you design. The complementarity is real and unusually concrete in both directions. The discovery value is not: you were PhD students in the same CMU department in overlapping years, share one-hop co-authors from your PhD lab (Jon McCune, Michael Reiter), and he already cites you in four papers. This is an agenda for a conversation you could start with one email, and it earns the hour only if verified obliviousness or deployed differential obliviousness is on your roadmap.",
+      threads: [
+        {
+          h: "Your compilers are the population his fuzzer was built to test",
+          p: "His BabelFuzz found 27 new logic bugs across four MPC compilers by differential testing through a shared IR, on the theory that compilers which quietly produce wrong outputs are catastrophic for this technology. But its oracle is functional correctness: does the compiled circuit compute the right answer? Your compilers make a second, stronger promise: ObliVM emits oblivious programs, and Viaduct promises the compiled program defends the source-level information-flow policy. Neither promise is a functional property, so differential testing against a mainstream-language translation cannot check it. The joint project extends the fuzzing oracle from wrong output to leaky output: metamorphic or relational testing for obliviousness violations, with ObliVM and Viaduct as the first targets. You know where those compilers cut corners; he has the harness."
+        },
+        {
+          h: "Formally verified obliviousness (the roadmap-dependent thread)",
+          p: "You stood on the PL side of this bridge once: memory-trace oblivious execution with a type system, and GhostRider's proof that its compilation enjoys MTO. Those proofs are on paper, for a small language, a decade ago. Meanwhile your theory side has produced objects nobody has machine-checked, OptORAMa above all. His current stack is built for the gap: RefinedC does foundational, Coq-checked verification of real C; Islaris pushes to machine code against authoritative ISA semantics; and obliviousness is a relational property, the shape his logics were designed for. The sharper version uses his secure-compilation vocabulary: nobody has stated which of his robust-preservation criteria \"compilation preserves obliviousness\" instantiates, or built a compiler proven to satisfy it. Honest label: highest value and most conditional. A multi-year verification effort that only makes sense if you want your constructions verified rather than just published."
+        },
+        {
+          h: "Your differentially oblivious operators inside CoVault",
+          p: "CoVault runs approved queries on encrypted data at serious scale (epidemic analytics for a country of 80M people, about 11.85B records a day) and everything inside runs on fully oblivious operators, because the TEE threat model leaks access patterns. That is the exact cost center your DO program attacks: your Adore operators (selection, grouping, foreign-key join) beat their fully oblivious counterparts by up to 7.4x. The fit goes deeper than a component swap: CoVault's flagship workload is continuous, and continuous queries are where naive DO falls apart. You have the missing pieces on paper, the Eurocrypt 2023 composition theory and the 2024 continual observation of joins. The synthesis question: swap in the DO operators, spend a single (ε, δ) budget across the query stream, and measure whether the algorithmic win survives inside MPC-in-TEEs at that volume. Fastest path to a joint artifact, since CoVault and Adore both already exist."
+        },
+        {
+          h: "Two mechanized-crypto efforts that don't cite each other",
+          p: "Your IPDL line with Gancher mechanizes simulation-style proofs in Coq, with Oblivious Transfer and GMW as case studies; his probabilistic program logics reason about adversarial computations in higher-order settings, with soundness in quasi-Borel spaces. IPDL trades expressiveness for simplicity and struggles with stateful, adaptive corruption; his logics handle higher-order state and cost but have not been aimed at UC-style protocol equivalence. Could his semantic machinery extend IPDL far enough to prove an ORAM or a DO algorithm secure, closing the loop with the verification thread? Honest label: genuine but lowest marginal value, since you both already have strong collaborators in this exact niche."
+        }
+      ],
+      joint: "If you collaborated: the near-term paper is \"Differentially Oblivious Analytics at Scale\", your Adore operators plus your composition theorems inside CoVault, an OSDI/CCS-shaped systems paper with one clean theorem about budget accounting. The ambitious follow-on is a foundationally verified ORAM, obliviousness stated and machine-checked as a relational property down to running C. The cheap first move that builds trust: point BabelFuzz, extended with an obliviousness oracle, at ObliVM and Viaduct and see what falls out."
+    }
+  ];
+
+  var LS_KEY = "router-rate-v2";
+  var state = { p1: {}, p2: {}, locked: false };
+  try {
+    var saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (saved && typeof saved === "object") {
+      state.p1 = saved.p1 || {};
+      state.p2 = saved.p2 || {};
+      state.locked = !!saved.locked;
+    }
+  } catch (e) { /* start fresh */ }
+
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function radioGroup(groupName, legend, opts) {
+    var html = '<fieldset><legend>' + esc(legend) + '</legend><div class="opts">';
+    opts.forEach(function (opt) {
+      html += '<label><input type="radio" name="' + groupName + '" value="' + esc(opt) + '"><span>' + esc(opt) + '</span></label>';
+    });
+    html += '</div></fieldset>';
+    return html;
+  }
+
+  // Part 1 cards
+  var cardsEl = document.getElementById("cards");
+  var cardsHtml = "";
+  CANDIDATES.forEach(function (c) {
+    cardsHtml += '<article class="card" data-cid="' + c.id + '">'
+      + '<h3>' + esc(c.name) + '</h3>'
+      + '<p class="aff">' + esc(c.aff) + '</p>'
+      + '<ul class="areas">' + c.areas.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join("") + '</ul>'
+      + '<ul class="papers">' + c.papers.map(function (p) { return '<li>' + esc(p.t) + ' <span class="yr">(' + p.y + ')</span></li>'; }).join("") + '</ul>'
+      + radioGroup("know-" + c.id, "Do you know this person?", KNOW_OPTS)
+      + radioGroup("hour-" + c.id, "Would you want an hour with them?", HOUR_OPTS)
+      + '<fieldset><legend>Why? <span style="font-weight:400;color:var(--muted)">(optional)</span></legend>'
+      + '<textarea name="why-' + c.id + '" placeholder="A sentence is plenty."></textarea></fieldset>'
+      + '</article>';
+  });
+  cardsEl.innerHTML = cardsHtml;
+
+  // Part 2 guides
+  var guidesEl = document.getElementById("guides");
+  var guidesHtml = "";
+  GUIDES.forEach(function (g) {
+    guidesHtml += '<article class="card guide" data-gid="' + g.id + '">'
+      + '<h3>' + esc(g.name) + '</h3>'
+      + '<p class="aff">' + esc(g.aff) + '</p>'
+      + '<p class="thesis">' + esc(g.thesis) + '</p>';
+    g.threads.forEach(function (t, i) {
+      guidesHtml += '<h4>Thread ' + (i + 1) + ': ' + esc(t.h) + '</h4><p>' + esc(t.p) + '</p>';
+    });
+    guidesHtml += '<p class="joint">' + esc(g.joint) + '</p>'
+      + radioGroup("acc-" + g.id, "Is this an accurate picture of your work?", ACC_OPTS)
+      + '<fieldset><legend>Anything to flag? <span style="font-weight:400;color:var(--muted)">(optional)</span></legend>'
+      + '<textarea name="flags-' + g.id + '" placeholder="Specific errors, missing context, wrong emphasis."></textarea></fieldset>'
+      + radioGroup("worth-" + g.id, "Would this agenda be worth the hour?", WORTH_OPTS)
+      + '</article>';
+  });
+  guidesEl.innerHTML = guidesHtml;
+
+  // Restore saved answers into inputs
+  function checkRadio(name, value) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function (el) {
+      if (el.value === value) el.checked = true;
+    });
+  }
+  function restore() {
+    CANDIDATES.forEach(function (c) {
+      var a = state.p1[c.id] || {};
+      ["know", "hour"].forEach(function (q) {
+        if (a[q]) checkRadio(q + "-" + c.id, a[q]);
+      });
+      if (a.why) {
+        var ta = document.querySelector('textarea[name="why-' + c.id + '"]');
+        if (ta) ta.value = a.why;
+      }
+    });
+    GUIDES.forEach(function (g) {
+      var a = state.p2[g.id] || {};
+      ["acc", "worth"].forEach(function (q) {
+        if (a[q]) checkRadio(q + "-" + g.id, a[q]);
+      });
+      if (a.flags) {
+        var ta = document.querySelector('textarea[name="flags-' + g.id + '"]');
+        if (ta) ta.value = a.flags;
+      }
+    });
+  }
+
+  function part1Complete() {
+    return CANDIDATES.every(function (c) {
+      var a = state.p1[c.id];
+      return a && a.know && a.hour;
+    });
+  }
+
+  function refresh() {
+    var n = CANDIDATES.filter(function (c) {
+      var a = state.p1[c.id];
+      return a && a.know && a.hour;
+    }).length;
+    var complete = part1Complete();
+    document.getElementById("continueBox").classList.toggle("hidden", !(complete && !state.locked));
+    document.getElementById("lockedNote").classList.toggle("hidden", !state.locked);
+    document.getElementById("part2").classList.toggle("hidden", !state.locked);
+    document.getElementById("progress").textContent = state.locked
+      ? "Part 1 locked · part 2 open"
+      : "Part 1: " + n + " of 11 rated";
+    if (state.locked) applyLock();
+  }
+
+  function applyLock() {
+    document.querySelectorAll("#cards input, #cards textarea").forEach(function (el) { el.disabled = true; });
+    document.getElementById("cards").classList.add("locked");
+  }
+
+  // Event handling
+  document.getElementById("cards").addEventListener("change", function (ev) {
+    if (state.locked) return;
+    var el = ev.target;
+    var m = el.name && el.name.match(/^(know|hour)-(.+)$/);
+    if (!m) return;
+    state.p1[m[2]] = state.p1[m[2]] || {};
+    state.p1[m[2]][m[1]] = el.value;
+    save();
+    refresh();
+  });
+  document.getElementById("cards").addEventListener("input", function (ev) {
+    if (state.locked) return;
+    var el = ev.target;
+    var m = el.name && el.name.match(/^why-(.+)$/);
+    if (!m) return;
+    state.p1[m[1]] = state.p1[m[1]] || {};
+    state.p1[m[1]].why = el.value;
+    save();
+  });
+  document.getElementById("guides").addEventListener("change", function (ev) {
+    var el = ev.target;
+    var m = el.name && el.name.match(/^(acc|worth)-(.+)$/);
+    if (!m) return;
+    state.p2[m[2]] = state.p2[m[2]] || {};
+    state.p2[m[2]][m[1]] = el.value;
+    save();
+  });
+  document.getElementById("guides").addEventListener("input", function (ev) {
+    var el = ev.target;
+    var m = el.name && el.name.match(/^flags-(.+)$/);
+    if (!m) return;
+    state.p2[m[1]] = state.p2[m[1]] || {};
+    state.p2[m[1]].flags = el.value;
+    save();
+  });
+
+  document.getElementById("continueBtn").addEventListener("click", function () {
+    if (!part1Complete()) return;
+    state.locked = true;
+    save();
+    refresh();
+    document.getElementById("part2").scrollIntoView({ behavior: "smooth" });
+  });
+
+  function buildResults() {
+    var part1 = CANDIDATES.map(function (c) {
+      var a = state.p1[c.id] || {};
+      return {
+        name: c.name,
+        know: a.know || null,
+        hour_with_them: a.hour || null,
+        why: a.why || ""
+      };
+    });
+    var part2 = GUIDES.map(function (g) {
+      var a = state.p2[g.id] || {};
+      return {
+        guide: g.name,
+        accurate_picture: a.acc || null,
+        flags: a.flags || "",
+        worth_the_hour: a.worth || null
+      };
+    });
+    return {
+      form: "router-match-ratings",
+      rater: "Elaine Shi",
+      sent: new Date().toISOString(),
+      part1: part1,
+      part2: part2
+    };
+  }
+
+  document.getElementById("sendBtn").addEventListener("click", function () {
+    var body = JSON.stringify(buildResults(), null, 2);
+    var href = "mailto:barnes.james@gmail.com"
+      + "?subject=" + encodeURIComponent("Router match ratings")
+      + "&body=" + encodeURIComponent(body);
+    window.location.href = href;
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var text = JSON.stringify(buildResults(), null, 2);
+    function done() {
+      var el = document.getElementById("copied");
+      el.classList.remove("hidden");
+      setTimeout(function () { el.classList.add("hidden"); }, 2500);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+    } else {
+      fallbackCopy(text);
+      done();
+    }
+  });
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+
+  restore();
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Research Router: hypothesis and trial</title>
+<style>
+:root{
+  --bg0:#ffffff; --bg1:#f5f5f8;
+  --ink:#18161f; --ink-dim:#55505f; --ink-faint:#8f8b9a;
+  --accent:#0a6cff; --accent-2:#00e0c6;
+  --ok:#12a06a; --warn:#c5870c; --err:#d23b3b;
+  --card:#ffffff; --card-line:rgba(20,16,40,0.30);
+  --stays-local:var(--ok); --leaves-write:var(--accent); --leaves-post:var(--warn);
+  --hard:#15131f;
+  --serif:"Iowan Old Style","Palatino","Georgia",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:var(--sans); color:var(--ink); -webkit-font-smoothing:antialiased;
+  background:
+    repeating-linear-gradient(0deg, rgba(20,16,40,0.035) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(90deg, rgba(20,16,40,0.035) 0 1px, transparent 1px 26px),
+    #ffffff;
+  line-height:1.6;
+}
+.wrap{max-width:980px;margin:0 auto;padding:0 28px;}
+section{padding:80px 0;border-bottom:1px solid rgba(20,16,40,0.07);}
+a{color:var(--accent);text-decoration:none;}
+a:hover{opacity:.7;}
+
+nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.82);
+  backdrop-filter:blur(8px);border-bottom:1px solid rgba(20,16,40,0.08);}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:54px;}
+.navbrand{display:flex;align-items:center;gap:9px;}
+.navbrand img{width:26px;height:26px;border-radius:50%;}
+.navbrand b{font-weight:800;font-size:13.5px;letter-spacing:.3px;
+  text-shadow:1px 0 rgba(255,40,40,.6),-1px 0 rgba(0,225,255,.6);}
+.navlinks{display:flex;gap:20px;font-size:12.5px;}
+.navlinks a{color:var(--ink-faint);} .navlinks a:hover{color:var(--ink-dim);opacity:1;}
+@media(max-width:860px){.navlinks{display:none;}}
+
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.18em;color:var(--accent);margin-bottom:16px;}
+h2{font-family:var(--serif);font-weight:700;font-size:34px;line-height:1.12;
+  letter-spacing:-.4px;margin-bottom:14px;}
+h3{font-family:var(--serif);font-weight:650;font-size:20px;margin-bottom:8px;}
+.lead{font-family:var(--serif);font-size:19px;line-height:1.6;color:var(--ink-dim);max-width:62ch;}
+p.body{font-size:15.5px;line-height:1.7;color:var(--ink-dim);max-width:64ch;margin-bottom:14px;}
+p.body b{color:var(--ink);}
+
+.hero{padding:96px 0 80px;text-align:center;border-bottom:1px solid rgba(20,16,40,0.07);}
+.discoball{width:118px;height:118px;border-radius:50%;margin:0 auto 22px;display:block;
+  box-shadow:0 0 0 1px rgba(20,16,40,.15),0 16px 50px -18px rgba(10,108,255,.55);
+  animation:spin 26s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.hero h1{font-family:var(--mono);font-weight:700;font-size:clamp(32px,7vw,60px);
+  line-height:.98;letter-spacing:-2px;text-transform:uppercase;margin-bottom:6px;}
+.hero h1 .glitch{text-shadow:2px 0 rgba(255,40,40,.7),-2px 0 rgba(0,225,255,.7);
+  animation:glitch 7s steps(1,end) infinite;}
+@keyframes glitch{0%,88%,100%{text-shadow:1.6px 0 rgba(255,40,40,.8),-1.6px 0 rgba(0,225,255,.8);transform:translate(0,0);}
+  90%{text-shadow:-3px 0 rgba(255,40,40,.9),3px -1px rgba(0,225,255,.9);transform:translate(1px,-1px) skewX(-5deg);}
+  93%{text-shadow:3px 1px rgba(0,225,255,.9),-3px 0 rgba(255,40,40,.9);transform:translate(-1px,1px);}}
+.hero .sub{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink-dim);margin:18px auto 0;max-width:54ch;}
+.hero .thesis{font-family:var(--serif);font-size:18px;line-height:1.6;color:var(--ink);max-width:60ch;margin:28px auto 0;text-align:left;}
+.dedication{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-faint);margin-top:34px;}
+.hero-cta{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap;}
+.btn{font-family:var(--sans);font-size:14px;font-weight:600;padding:12px 22px;border:2px solid var(--hard);
+  background:#fff;color:var(--ink);box-shadow:4px 4px 0 var(--hard);transition:transform .08s,box-shadow .08s;}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--hard);opacity:1;}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#0a4ecf);color:#fff;border-color:var(--hard);}
+
+.card{background:var(--card);border:2px solid var(--hard);box-shadow:7px 7px 0 var(--hard);padding:24px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media(max-width:680px){.grid2,.grid3{grid-template-columns:1fr;}}
+.card .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.card p{font-size:14.5px;line-height:1.6;color:var(--ink-dim);}
+.card h3{margin-bottom:6px;}
+
+.funnel{display:flex;flex-direction:column;gap:7px;margin:8px 0;}
+.frow{display:flex;align-items:center;gap:14px;}
+.fbar{height:34px;background:linear-gradient(90deg,var(--accent),var(--accent-2));display:flex;align-items:center;
+  padding-left:12px;color:#fff;font-weight:700;font-size:13px;min-width:60px;border:1.5px solid var(--hard);flex-shrink:0;}
+.flabel{font-size:13px;color:var(--ink-dim);} .flabel b{color:var(--ink);}
+
+/* candidate gallery */
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px;}
+@media(max-width:680px){.gallery{grid-template-columns:1fr;}}
+.cand{border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:18px 20px;display:flex;flex-direction:column;gap:8px;}
+.cand .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+.cand .nm{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--ink);}
+.cand .af{font-size:11.5px;color:var(--ink-faint);}
+.cand .br{font-size:13.5px;color:var(--ink-dim);line-height:1.5;}
+.cand .mesh{font-family:var(--serif);font-size:14.5px;line-height:1.55;color:var(--ink);font-style:italic;}
+.cand .bars{display:flex;gap:16px;margin-top:4px;}
+.mini{display:flex;flex-direction:column;gap:2px;}
+.mini .v{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--accent);}
+.mini .lb{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+.badge{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border:1px solid #0b8a7a;color:#0b8a7a;background:rgba(0,224,198,.08);white-space:nowrap;}
+.badge.top{border-color:var(--accent);color:#fff;background:var(--accent);}
+
+/* feature list */
+.featlist{display:flex;flex-direction:column;gap:14px;margin-top:8px;}
+.feat{display:flex;gap:16px;border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:18px 20px;align-items:flex-start;}
+.feat .n{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:14px;flex-shrink:0;width:26px;margin-top:2px;}
+.feat h4{font-family:var(--serif);font-size:17px;margin-bottom:3px;}
+.feat p{font-size:14px;line-height:1.6;color:var(--ink-dim);}
+.feat p b{color:var(--ink);}
+.feat .tag{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#0b8a7a;margin-top:6px;display:block;}
+
+.callout{border:2px solid var(--hard);box-shadow:7px 7px 0 var(--hard);background:#fff;padding:26px 28px;}
+.callout .q{font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--ink);}
+.callout .cite{font-size:13px;color:var(--ink-faint);margin-top:12px;}
+
+/* charts */
+.fig{border:2px solid var(--hard);box-shadow:7px 7px 0 var(--hard);background:#fff;padding:24px 28px;margin:26px 0;overflow-x:auto;}
+.fig .ft{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);}
+.fig .fs{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:5px;}
+.fig .panels{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:22px;}
+@media(max-width:680px){.fig .panels{grid-template-columns:1fr;}}
+.fig .ph{font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:14px;}
+.pgrid{display:grid;grid-template-columns:170px 1fr;gap:14px 16px;align-items:center;}
+@media(max-width:680px){.pgrid{grid-template-columns:110px 1fr;}}
+.pgrid .plab{font-size:14px;line-height:1.4;color:var(--ink-dim);}
+.pgrid .pbar{display:flex;align-items:center;gap:9px;min-width:0;}
+.pgrid .pbar.neg{justify-content:flex-end;}
+.stats{display:flex;flex-direction:column;gap:20px;margin-top:4px;}
+.stat .statv{font-family:var(--mono);font-weight:700;font-size:30px;line-height:1;color:var(--ink);}
+.stat .statl{font-size:13.5px;color:var(--ink-dim);margin-top:5px;}
+.cbar{height:24px;border:1.5px solid var(--hard);flex-shrink:0;}
+.cbar.ink{background:var(--ink);}
+.cbar.acc{background:var(--accent);}
+.cbar.schematic{background:repeating-linear-gradient(135deg,rgba(24,22,31,.4) 0 4px,rgba(24,22,31,.06) 4px 9px);}
+.cval{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap;}
+.paxis{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);border-top:1.5px solid var(--card-line);padding-top:5px;}
+.chip{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;border:1.5px solid var(--hard);padding:5px 12px;color:var(--ink);margin-top:14px;background:#fff;}
+.pgrid .tera{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);line-height:1.45;}
+.pgrid .tera span{display:block;font-weight:400;color:var(--ink-faint);font-size:11px;}
+.tnote{font-size:13.5px;color:var(--ink-dim);margin-bottom:5px;}
+.tzero{display:inline-block;font-family:var(--mono);font-weight:700;font-size:14px;color:#fff;background:var(--accent);border:1.5px solid var(--hard);padding:3px 11px;}
+.taxis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);border-top:1.5px solid var(--card-line);padding-top:5px;}
+.fig figcaption{margin-top:16px;font-size:13px !important;line-height:1.6;}
+
+/* the argument spine */
+.arg{list-style:none;counter-reset:arg;display:flex;flex-direction:column;gap:12px;max-width:72ch;}
+.arg li{font-family:var(--serif);font-size:17px;line-height:1.55;color:var(--ink);counter-increment:arg;position:relative;padding-left:38px;}
+.arg li::before{content:counter(arg,decimal-leading-zero);font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent);position:absolute;left:0;top:5px;}
+
+/* flowchart */
+.flow{display:flex;flex-direction:column;margin-top:22px;}
+.fnode{border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:16px 20px;}
+.fnode.acc{border-color:var(--accent);box-shadow:5px 5px 0 var(--accent);}
+.fnode .fk{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;}
+.fnode p{font-size:14.5px;line-height:1.6;color:var(--ink-dim);}
+.fnode p b{color:var(--ink);}
+.farrow{display:flex;align-items:center;gap:10px;padding:10px 0 10px 24px;}
+.farrow .fa{font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink);}
+.farrow .fl{font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+
+footer{padding:60px 0 80px;text-align:center;}
+footer .links{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;font-size:13.5px;margin-bottom:22px;}
+footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--ink-dim);}
+.small{font-size:12px;color:var(--ink-faint);margin-top:14px;}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="navbrand"><img src="disco.png" alt="Router"/><b>THE RESEARCH ROUTER</b></div>
+  <div class="navlinks">
+    <a href="#problem">Problem</a>
+    <a href="#hypothesis">Hypothesis</a>
+    <a href="#science">Claude Science</a>
+    <a href="#features">What it adds</a>
+    <a href="#evidence">Evidence</a>
+    <a href="#trial">The trial</a>
+    <a href="#implications">If it's right</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <img class="discoball" src="disco.png" alt="Router disco ball"/>
+  <h1>The Research <span class="glitch">Router</span></h1>
+  <p class="sub">Researchers do better work when their AI agents are grounded in their community.</p>
+  <p class="thesis">AI use is spreading fast through academic research &mdash; 84% of researchers in one 2025 survey. Most of it runs through general-purpose consumer chat tools, most of it on free tiers, even as frontier capability races toward agentic research environments reachable today only inside a few funded labs. The researchers who do adopt AI tend to cover fewer subjects with fewer collaborators, and carry growing worries about hallucination, plagiarism, misinterpretation, and how peers will judge work an AI has touched. We think two changes together can reverse all three losses &mdash; the narrowing, the errors, and the isolation &mdash; while accelerating interdisciplinary discovery: put frontier tools in researchers' hands, and ground them in each researcher's community, so every session points outward, toward a colleague's result or a collaborator two fields away. It is a falsifiable claim, and we test it with a randomized trial of 25 researchers and 25 matched grad students, one month, blind-scored &mdash; and the project continues only if grounding beats the ungrounded frontier.</p>
+  <div class="hero-cta">
+    <a class="btn primary" href="#hypothesis">The hypothesis &darr;</a>
+    <a class="btn" href="#trial">The trial</a>
+  </div>
+  <div class="dedication">Dedicated to the common understanding of all humanity</div>
+</div></header>
+
+<!-- THE ARGUMENT -->
+<section id="argument" style="padding:48px 0"><div class="wrap">
+  <div class="eyebrow">The argument, in five sentences</div>
+  <ol class="arg">
+    <li>Researchers who use AI publish more and get cited more, but they talk to fewer colleagues and explore fewer topics. That is the finding across 41.3 million papers.</li>
+    <li>We think that happens because today's AI tools know the published literature but nothing about the researcher's community &mdash; who they work with, and who is working on the same problem right now.</li>
+    <li>Our hypothesis: connect the AI to that community &mdash; the researcher's own papers, their collaborators, and the people just beyond them &mdash; and the work gets measurably better.</li>
+    <li>We test it with a one-month randomized trial: 25 researchers and 25 grad students, comparing a basic chat subscription, a funded frontier seat, and that same seat plus the Router. If the Router doesn't win, the project stops.</li>
+    <li>If it does win, the result is the case for the real goal: funders underwriting unlimited frontier AI for PhD researchers and grad students &mdash; a network strong enough that the best minds don't have to join a frontier lab to work at the frontier.</li>
+  </ol>
+</div></section>
+
+<!-- PROBLEM -->
+<section id="problem"><div class="wrap">
+  <div class="eyebrow">Problem statement</div>
+  <h2>Research is getting more isolated,<br/>right when it should be getting more connected</h2>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">Across 41.3 million papers, researchers who adopt AI publish 3.02&times; the papers and earn 4.84&times; the citations, but they engage with 22% less of their fellow scientists' work and cover 4.63% fewer topics. The authors call it "lonely crowds": ungrounded AI makes each person louder and the room emptier.</div>
+    <div class="cite">This is the whole problem in one line. The tools that should be pulling researchers together are pulling them apart, right when the science needs them talking to each other. The three forces behind it come next; the rest of the page is what to do about it.</div>
+  </div>
+  <figure class="fig">
+    <div class="ft">The lonely-crowd trade</div>
+    <div class="fs">Hao, Xu, Li &amp; Evans, Nature 2025 &middot; 41.3M natural-science papers</div>
+    <div class="panels">
+      <div>
+        <div class="ph">What each adopter gains</div>
+        <div class="stats">
+          <div class="stat"><div class="statv">3.02&times;</div><div class="statl">the papers of a non-adopter</div></div>
+          <div class="stat"><div class="statv">4.84&times;</div><div class="statl">the citations</div></div>
+          <div class="stat"><div class="statv">1.37 yrs</div><div class="statl">earlier to project leadership</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="ph">What the field loses</div>
+        <div class="pgrid" style="grid-template-columns:1fr;gap:6px 0">
+          <div class="plab">Engagement with other scientists' work</div>
+          <div class="pbar neg"><span class="cval">&minus;22%</span><div class="cbar ink" style="width:82%"></div></div>
+          <div class="plab" style="margin-top:12px">Collective topic coverage</div>
+          <div class="pbar neg"><span class="cval">&minus;4.63%</span><div class="cbar ink" style="width:17.3%"></div></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="small">Same researchers, same papers; the measure is engagement on the work itself, adopters against non-adopters &mdash; not survey mood. The study shows the trade; it does not say what causes it. Our read &mdash; that the model, trained on everyone's published record, replaces the colleague and pulls each researcher toward the average of the literature &mdash; is the hypothesis this trial puts a number on. And adoption ran from 57% to 84% of researchers in a single year, so nothing here self-corrects on its own.</figcaption>
+  </figure>
+  <p class="body">Most researchers reach for the plain chat window. ChatGPT alone accounted for 82% of AI-using developers in the 2025 Stack Overflow survey, roughly double any coding assistant or agent, and among scientists the pattern holds: 77.5% name a general-purpose chat tool as their primary tool. Hardly any of them pay for it. One campus survey put 88% of AI users on the free tier, and that is starting to matter, because the paid frontier is pulling away fast and access to it is becoming an advantage money can buy. Tools like Anthropic's <a href="https://www.anthropic.com/news/claude-science-ai-workbench">Claude Science</a> are a real step up from the chat window, and the $200-a-month seat that unlocks them sits above what most grants are written to buy.</p>
+  <p class="body">Even the best tool leaves this in place, because any answer drawn from a model's weights carries two kinds of error at once. The <b>precision</b> failures are the famous ones: invented citations, confident claims no source supports. The <b>recall</b> failures are quieter and cost more: the weights end at the training data, so the model cannot surface the coauthor who posted something relevant last week, the preprint that breaks one of your assumptions, the distant lab circling the same question &mdash; the newest, closest work is exactly what is missing. And every private answer, right or wrong, replaces a question the researcher would have taken to a colleague. Consumer or frontier, the tool is grounded in the literature and blind to the room.</p>
+  <p class="body">Incentives make it worse. Careers ride on getting there first, so sharing a half-formed idea is a way to get scooped, and the real conversation stays among a handful of trusted people until the paper is out. And the paper keeps only the answer. The wrong turns, the arguments that actually changed someone's mind, live on in two or three memories and nowhere else. The investor Cyan Banister calls it <a href="https://x.com/cyantist">building "the most consequential technology in human history&hellip; in disappearing ink"</a>: Darwin left notebooks and Einstein left decades of correspondence, but their successors work it out in DMs and group chats that will not survive the decade. If anything the picture is one step worse than her essay draws it, because the deepest reasoning is moving out of group chats entirely and into LLM threads &mdash; one researcher and one model in a private channel &mdash; ink that disappears before it ever had a second reader. Preservation, she argues, has never happened without deliberate institutional effort. That is what the Router is.</p>
+  <p class="body">There is a longer arc here too. Science began at letter-writing speed, traded that speed for vetting, and has been clawing it back ever since; the Router is the next step on the curve &mdash; active work at t&nbsp;=&nbsp;0, with priority attested and the record kept.</p>
+  <figure class="fig">
+    <div class="ft">How old is the work when it finally reaches you?</div>
+    <div class="fs">Latency from finished work to a colleague's awareness of it</div>
+    <div class="pgrid" style="grid-template-columns:170px 1fr;margin-top:20px">
+      <div class="tera">Private letters<span>17th century</span></div>
+      <div><div class="tnote">days&ndash;weeks &middot; work-in-progress by default</div><div class="pbar"><div class="cbar schematic" style="width:2.5%;min-width:10px"></div></div></div>
+      <div class="tera">Journals + peer review<span>1665 &rarr;</span></div>
+      <div><div class="tnote">a year or more &middot; only finished answers</div><div class="pbar"><div class="cbar schematic" style="width:86%"></div><span class="cval">+</span></div></div>
+      <div class="tera">Peer-reviewed conferences<span>proceedings</span></div>
+      <div><div class="tnote">typically 3&ndash;4 months after the work is done</div><div class="pbar"><div class="cbar ink" style="width:25%"></div></div></div>
+      <div class="tera">Preprint archive<span>arXiv 1991 &middot; ePrint 1996</span></div>
+      <div><div class="tnote">about 1 month out</div><div class="pbar"><div class="cbar ink" style="width:7.1%;min-width:10px"></div></div></div>
+      <div class="tera">The Router<span>2026</span></div>
+      <div><div class="tnote">reasoning traces and active work, the moment someone starts</div><span class="tzero">t&nbsp;=&nbsp;0</span></div>
+      <div></div>
+      <div class="taxis"><span>t = 0</span><span>7 mo</span><span>14 mo</span></div>
+    </div>
+    <figcaption class="small">Approximate channel latencies in cryptography (ePrint vs. peer-reviewed conference versions). Historical rows are schematic, not measured.</figcaption>
+  </figure>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">The evidence on this page is collected in <a href="../lit-review/main.pdf"><b>Large Language Models in Academic Research</b></a>, a literature review covering roughly seventy empirical, bibliometric, and position sources on how researchers actually use AI.</div>
+    <div class="cite">Its two findings that matter here: frontier models are becoming central to individual research work, and each researcher uses one alone, in a private channel &mdash; which at population scale shows up as fewer collaborators and narrower topics. <a href="../lit-review/main.pdf">Read the full review (PDF).</a></div>
+  </div>
+  <p class="small">Headline figures, each checked against its primary source: <a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0330416">Arroyo-Machado et al., PLOS ONE 2025</a> (65% of US academic STEM scientists have used generative AI in teaching or research) &middot; <a href="https://arxiv.org/abs/2512.19644">O'Brien et al., arXiv:2512.19644</a> (77.5% of AI-adopting scientists who program name a general-purpose chat tool as primary) &middot; <a href="https://hai.stanford.edu/policy/expanding-academias-role-in-public-sector-ai">Stanford HAI</a> (51 notable ML models from industry vs. academia's 15 in 2023) &middot; <a href="https://arxiv.org/abs/2410.23261">Khandelwal et al., arXiv:2410.23261</a> (academic labs typically work with 1 to 8 GPUs) &middot; <a href="https://onlinelibrary.wiley.com/doi/10.1111/jofi.13302">Gofman &amp; Jin, Journal of Finance 2024</a> (211 tenure-line AI professors left North American universities 2004-2018; the leavers' citation share rose from about 5% to nearly 19%) &middot; <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5206685/">Edwards &amp; Roy 2017</a> (perverse incentives and hypercompetition) &middot; <a href="https://www.nature.com/articles/s41586-025-09922-y">Hao et al., Nature 2025</a> (across 41.3M papers, AI-adopting researchers cut scientist-to-scientist engagement 22% and narrowed collective topics 4.63%) &middot; <a href="https://academic.oup.com/pages/ai-survey-findings">Oxford University Press 2024</a> (76% of 2,345 researchers already use an AI tool, most commonly translation and chatbots) &middot; <a href="https://www.wiley.com/en-us/about-us/ai-resources/ai-study/">Wiley ExplanAItions 2025</a> (researcher AI use rose from 57% to 84% in a year) &middot; <a href="https://survey.stackoverflow.co/2025/ai">Stack Overflow 2025</a> (ChatGPT used by 82% of AI-using developers, ~2x any coding-specific tool) &middot; <a href="https://arxiv.org/abs/2508.00717">Contractor &amp; Reyes 2025</a> (of AI users at an elite college, 88% were on free tiers; only 11% paid) &middot; <a href="https://www.nature.com/articles/s41598-023-41032-5">Walters &amp; Wilder, Scientific Reports 2023</a> (of 636 citations in ChatGPT-generated literature reviews, 55% of GPT-3.5's and 18% of GPT-4's were fabricated).</p>
+</div></section>
+
+<!-- HYPOTHESIS -->
+<section id="hypothesis"><div class="wrap">
+  <div class="eyebrow">Hypothesis</div>
+  <h2>Grounding an agent in its researcher's community measurably improves the work</h2>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">Adding a community-grounding layer to a frontier research environment produces (1) higher-quality work, (2) higher researcher satisfaction, and (3) more serendipitous connections than the same environment without it.</div>
+    <div class="cite">The grounding lives entirely in context and tool design: what the agent can reach and what it can do. No model is fine-tuned. That is what makes it testable with a ladder of arms that each differ from the next by exactly one thing: the consumer plan, the funded frontier seat, and that seat plus the Router.</div>
+  </div>
+  <div style="height:24px"></div>
+  <p class="body">The default picture of AI in research &mdash; ask a model to one-shot a theorem or a paper &mdash; is the smallest corner of the design space. At frontier capability the researcher's job is pointing the model into territory it would not reach alone, and one researcher covers one basin of attention. A network of researchers with overlapping but distinct interests, each steering their own grounded agent, covers the field: a group chat instead of a private channel. That is the mechanism the Router bets on; the trial measures whether the bet pays.</p>
+  <p class="body">"Grounded in their community" means the agent has the researcher's own papers, their coauthors' papers, and the two-hop network around them as working context, plus tools that act on that context: surfacing relevant work, protecting priority so early sharing is safe, and finding the collaborators just outside the researcher's own circle. The trial section's three-arm ladder separates what frontier access is worth from what grounding adds &mdash; the two numbers this page turns on.</p>
+  <p class="body">This also answers the obvious objection. If ungrounded AI is what thins the room, why would more AI help? Because the isolation comes from a tool that keeps every question and answer between the researcher and the model. Grounding plus approve-to-post keeps the researcher in the loop, editing and signing what the agent keeps. That human-in-the-loop mode is the one the evidence shows both raises quality and <b>preserves</b> the researcher's own expertise, where handing the work off wholesale erodes both. The lonely-crowd result is a design choice. Build the tool to point outward and the outcome flips. Grounding is the single variable this trial isolates.</p>
+</div></section>
+
+<!-- CLAUDE SCIENCE -->
+<section id="science"><div class="wrap">
+  <div class="eyebrow">The step before ours</div>
+  <h2>Claude Science is a real leap,<br/>and it works on one scientist at a time</h2>
+  <p class="lead">Anthropic's <a href="https://www.anthropic.com/news/claude-science-ai-workbench">Claude Science</a> is the strongest research environment a frontier lab has shipped. It pulls a scientist's scattered workflow into one place: it reads the literature and runs multi-step analysis, renders 3D protein structures and genome tracks, hands off the HPC and GPU jobs, wires in more than sixty curated tools for fields from genomics to cheminformatics, and runs a reviewer agent that checks every citation and calculation. Each output carries an auditable trail you can reproduce. For the individual researcher, it is a genuine step up.</p>
+  <div style="height:26px"></div>
+  <div class="grid2" style="align-items:start">
+    <div class="card"><div class="k">The leap</div><h3>One scientist, fully equipped</h3><p>Data to figure in a single session, sixty-plus domain tools, the heavy compute handled, every citation and calculation checked. The individual researcher's workflow, done well and done in one place.</p></div>
+    <div class="card" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)"><div class="k">The gap</div><h3>The room between scientists</h3><p>Spend a week inside it and three limits surface. It is <b>packaged</b>: a shelf of pre-built skills, and a working researcher we asked to evaluate it put it plainly &mdash; I see how I would do this myself, so I don't want it abstracted away. It is <b>passive</b>: even its literature search waits for you to arrive with a fully formed question, and the questions that change a research program are the ones you don't yet know to ask. And it is <b>single-player</b>: nothing in it knows your coauthors, your live threads, or the person two fields over circling your problem. The result is an adoption paradox &mdash; the researchers strong enough to use it tend not to need it, and the ones who would gain most have often never heard of it.</p></div>
+  </div>
+  <p class="body" style="margin-top:24px">None of this is an argument against the workbench. It is the argument for the Router: take Claude Science as the foundation, subsidize the seat, and add the one thing it cannot see &mdash; the room. Claude Science makes the individual scientist rigorous; the Router makes the field around them connected, and it does so inside Claude Science and the other tools a researcher already opens. Here is what it adds.</p>
+</div></section>
+
+<!-- FEATURES -->
+<section id="features"><div class="wrap">
+  <div class="eyebrow">What it adds</div>
+  <h2>Claude Science plus the Router keeps your research<br/>fresh, grounded, and collaborative</h2>
+  <p class="lead">The figure below is the trust story: the path one entry takes from your session to the shared commons. The six cards after it are what riding that loop feels like in a working day. Everything rides over MCP (the open protocol that lets tools plug into AI agents) inside the tools you already open.</p>
+  <figure class="fig">
+    <div class="ft">The path an entry takes</div>
+    <div class="fs">Capture to commons, attested end to end &middot; teleport-router</div>
+    <div class="flow">
+      <div class="fnode">
+        <div class="fk">1 &middot; Capture</div>
+        <p>When a session settles something worth keeping, the agent drafts an entry right there. A <b>protocol-level sensitivity check</b> runs first &mdash; a mandatory step in the capture protocol; a guardrail, not a guarantee. The guarantee is the gate below.</p>
+      </div>
+      <div class="farrow"><span class="fa">&darr;</span><span class="fl">you edit and sign, or wave it off at zero cost</span></div>
+      <div class="fnode acc">
+        <div class="fk">2 &middot; The approve-to-post gate</div>
+        <p><b>Nothing enters the commons &mdash; nothing becomes visible to any other researcher &mdash; without your signature.</b> Off the record stays off the record, and every disclosure is one you chose.</p>
+      </div>
+      <div class="farrow"><span class="fa">&darr;</span><span class="fl">approved entries go into sealed custody</span></div>
+      <div class="fnode acc">
+        <div class="fk">3 &middot; The enclave</div>
+        <p>The entry is held in a trusted execution environment: hardware-isolated compute whose operator sits outside the trust boundary, on the standard TEE assumptions a cryptographer will want to poke at. Three things happen there: you get a grace window to delete it; it is stamped with a <b>tamper-evident timestamp</b> recording that the entry existed on this date; and remote attestation shrinks what you take on faith to the hardware vendor's root of trust plus the published code.</p>
+      </div>
+      <div class="farrow"><span class="fa">&darr;</span><span class="fl">published under your handle</span></div>
+      <div class="fnode">
+        <div class="fk">4 &middot; The commons</div>
+        <p>The shared record &mdash; published entries alongside preprints and the open literature &mdash; searchable by every grounded agent in the network.</p>
+      </div>
+      <div class="farrow"><span class="fa">&#8635;</span><span class="fl">and what your colleagues publish flows back into your context, your digest, your drafts</span></div>
+    </div>
+  </figure>
+  <div style="height:20px"></div>
+  <div class="featlist">
+    <div class="feat"><div class="n">01</div><div>
+      <h4>Insights every morning about the people and ideas around you</h4>
+      <p>Overnight, the agent reads new arXiv postings, the latest work of your coauthors and the people the engine says you should follow, and fresh entries in the commons, all against your own open drafts and live threads. By the time you sit down you have a short digest: this result tightens a bound you lean on, that preprint pushes on an assumption in your section 4, this researcher two fields over is circling the same question you are. Researchers who turned off ePrint (cryptography's arXiv) because the volume beat them get the room back, filtered, with every line tied to their own work.</p>
+      <span class="tag">tests: quality &middot; satisfaction</span>
+    </div></div>
+    <div class="feat"><div class="n">02</div><div>
+      <h4>Your whole field as working memory</h4>
+      <p>Your papers, your coauthors' papers, the distant people the engine picked for you, and the record around them all, indexed and queryable, with every citation resolving to the actual passage &mdash; surfaced as you draft, so the reference that belongs in a paragraph arrives while you are writing it. That is the gap between a confident guess and a checkable answer: <a href="https://www.nature.com/articles/s41598-023-41032-5">Walters &amp; Wilder</a> analyzed 636 citations in ChatGPT-generated literature reviews and found 55% of GPT-3.5's and 18% of GPT-4's fabricated outright, often under real journal names. Trust is the binding constraint at the frontier, and a corpus where every claim lands on a real passage is how you earn it.</p>
+      <span class="tag">tests: quality &middot; grounding accuracy</span>
+    </div></div>
+    <div class="feat"><div class="n">03</div><div>
+      <h4>Face the committee before it exists</h4>
+      <p>Before you submit, the draft runs through a simulated panel that plays each likely reviewer: the skeptic on concrete efficiency, the theorist who asks why this relaxation is the right one. You meet the hard objections early, while there is still room to answer them inside the paper.</p>
+      <span class="tag">tests: quality</span>
+    </div></div>
+    <div class="feat"><div class="n">04</div><div>
+      <h4>Keep the reasoning while it is still fresh</h4>
+      <p>The dead ends and the killed constructions &mdash; why one approach failed, which counterexample moved a definition &mdash; usually evaporate by the next morning. Captured through the path above, they become a durable record you own, in your own words and under your own name.</p>
+      <span class="tag">tests: satisfaction</span>
+    </div></div>
+    <div class="feat"><div class="n">05</div><div>
+      <h4>Share early and keep the credit</h4>
+      <p>Cryptography already plays this game explicitly, on ePrint. You post when the work can hold your name: early enough to claim credit, never so early that a retracted theorem tarnishes it &mdash; and the moment you hear a rival is on your problem, you rush something up just to timestamp yourself. The Router does not create that game; it changes the payoff. Each approved entry carries a <b>timestamped cryptographic commitment</b> &mdash; the entry's hash anchored publicly, provable later without revealing the entry, while the TEE attests the custody pipeline &mdash; so the timestamp holds your priority without demanding a finished draft. A peer-reviewed proceeding typically reaches the field three or four months after the work is done, an ePrint posting about a month; a committed entry exists at t&nbsp;=&nbsp;0. Cryptographers already act as if ideas arrive rather than originate &mdash; simultaneous discovery is the norm &mdash; and the timestamp is how you plant the flag without publishing the map. The people with the most to gain are the ones with the most at risk today: grad students with no reputation yet to trade on.</p>
+      <span class="tag">tests: satisfaction &middot; serendipity</span>
+    </div></div>
+    <div class="feat"><div class="n">06</div><div>
+      <h4>The collaborators just outside your view</h4>
+      <p>This is the heart of the Router: connecting you with the people you would otherwise never see. It walks your field's real coauthorship graph and surfaces the researchers just past your line of sight, ranked by <b>productive distance</b>: enough shared ground to hold a conversation, enough divergence to make it worth having. Once the engine finds them it brings them close: their corpus, new preprints, and live work start flowing into your context and your digest. And because the commons holds work as it is produced, introductions land mid-problem &mdash; not a year later in each other's published abstracts &mdash; while the collaboration can still shape both papers. We have run this end to end already, and the results are below.</p>
+      <span class="tag">tests: serendipity</span>
+    </div></div>
+  </div>
+  <div style="height:30px"></div>
+  <div class="eyebrow">As the frontier improves</div>
+  <div class="callout">
+    <div class="q">Every one of these gets sharper as the frontier improves. The grounding lives in context and tools, so the same layer rides each new model release the day it lands.</div>
+    <div class="cite">Today the digest surfaces the relevant paper; a stronger model reasons about the exact argument in your draft that the paper unsettles. It is also why the pilot measures a delta &mdash; the grounded seat against the identical seat without the Router &mdash; so the result holds through model turnover.</div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">The confidentiality commitment</div>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">Every feature above assumes you will hand an agent your live, unpublished reasoning, and no cryptographer should take that on faith. So it is stated here as a design commitment, not a roadmap item: confidential compute is in the architecture from day one. Running your working thoughts through a leaky third-party tool is scooping yourself, and if private inference were not a viable part of the design space, this proposal would not exist.</div>
+    <div class="cite">The pieces named above &mdash; keys held by you, routing inside an attested TEE, attested priority commitments &mdash; are the first rung, and you can ask for the attestation quote. The privacy budget points outward like everything else here: rate-limit information out, not queries in; the agent may attend to your work constantly and stay silent, and nothing crosses to another researcher except through the approve-to-post gate. The rungs above &mdash; practical private inference, and deploying obfuscation and ORAM-based retrieval at tolerable cost &mdash; are live research problems, which is exactly why the pilot anchors in cryptography: this is a research agenda the anchor group's own students can take up.</div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">The access question</div>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">One assumption underneath all of this deserves daylight: today's easy access to the frontier could close. The most capable models, Claude's Fable class today, sit at the top of a widening price ladder. The free and cheap tier at the bottom looks like a land-grab, and as it ends the best tools may settle behind a price that outruns most academic budgets, leaving the frontier within reach only when someone funds the seat.</div>
+    <div class="cite">A hopeful precedent already exists. In February 2026 Anthropic began offering up to 10,000 <a href="https://claude.com/contact-sales/claude-for-oss">open-source maintainers</a> six months of its $200-a-month Claude Max tier for free, a deliberate subsidy of a high-value community that sits outside commercial pricing. Academic researchers are exactly such a community, still waiting for their equivalent, and this pilot is a first, measured version of one.</div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">The attribution question</div>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">The commons runs on contributed reasoning, and contributed reasoning demands credit. When the Router relays your killed construction into someone else's proof, the coauthor list has no row for what happened, and a system that takes your thinking without returning credit deserves to fail. It cannot be left unsolved, so the pilot ships the primitive any answer needs: every time a Router-surfaced item is confirmed useful to someone's work, one upvote &mdash; one signed edge in the graph of who informed what, logged on the same attested trail that already carries the commons. The trial collects these edges from day one; the introductions rated as worth the hour they cost are the first of them.</div>
+    <div class="cite">Two things get built on that log. A Router score: how often your work surfaced in others' sessions and whose results it informed &mdash; the connective work the citation record has never counted, collected first, formalized later. And a new kind of acknowledgement section, parallel to the coauthor list, that renders the relay graph in a form that fits at the end of a paper.</div>
+  </div>
+</div></section>
+
+<!-- EVIDENCE -->
+<section id="evidence"><div class="wrap">
+  <div class="eyebrow">Proof it runs</div>
+  <h2>The hard part is<br/>already built</h2>
+  <p class="lead">Everything else on this page is a promise. This part has already been run, end to end. It is the matching engine from the section above, the one that finds the people you would otherwise never see and brings their work to you, and we have run it start to finish on a real community. We used Elaine Shi, the CMU cryptographer, because her community is dense, public, and unforgiving &mdash; and cryptographers are the hardest audience the confidentiality design will ever face, which is why it has to be the first test, not the last. Everything below comes straight from her public record. Whether the matches are any good is precisely what we cannot judge ourselves; the <a href="rate.html">rating page</a> exists so she can tell us &mdash; including that the whole thing misses.</p>
+  <div style="height:24px"></div>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <div class="k">The fan-out</div>
+      <div class="funnel" id="funnel"></div>
+      <p style="margin-top:10px">314 direct coauthors (set aside) → their coauthors → narrowed by bridge strength → through a shared-thread gate → <b style="color:var(--ink)">7 vetted finalists</b>. Bar widths are log-scaled so the 4,960 and the 7 fit on one chart; the 4,960 is a lower bound, since the walk covers the top 30 of the 314 bridges.</p>
+    </div>
+    <div class="card">
+      <div class="k">The signal that mattered</div>
+      <h3>Shared ideas, separate paths</h3>
+      <p>Citations measure engagement with the <em>work</em>. Acquaintance is a separate signal, so it gets its own model &mdash; academic genealogy, community co-membership, bridge distance &mdash; and that model discounts each match's rank. The discount inverts the naive ordering. David Woodruff looks like the obvious match on paper, but he is Shi's own CMU department colleague: his acquaintance score maxed out, off the list. What rises instead is <b style="color:var(--accent-2)">Junbin Fang</b>, an optoelectronic-engineering professor at Jinan University in Guangzhou who co-authored a quantum Byzantine-agreement protocol that collides with her classical consensus bounds, from a community far outside her orbit.</p>
+    </div>
+  </div>
+  <div style="height:24px"></div>
+  <div class="gallery" id="gallery"></div>
+  <p class="small">Scales: discovery and novelty are review-panel scores out of 10; "paths apart" is 100 minus a modeled probability the two have already met, built only from public signals.</p>
+  <p class="body" style="margin-top:20px">The vetting panel is a set of LLM reviewer agents with web search &mdash; a cheap, reproducible critic &mdash; and the final ordering is the panel's judgment, not the formula's. Human judgment is the real bar, so every match ships with a rating loop, and the <a href="rate.html">rating exercise</a> collects the anchor researcher's scores as calibration labels before the pilot starts. Each rating does double duty: it sharpens the ranking for everyone, and accepting a match pulls that person's public corpus straight into your grounded context, so the agent that drafts with you tomorrow already knows the collaborator you said yes to today. The full per-candidate analysis, including the pairs the engine ruled out and why, is in <a href="https://github.com/jameslbarnes/research-router/blob/main/out/PANEL.md">PANEL.md</a>.</p>
+</div></section>
+
+<!-- TRIAL -->
+<section id="trial"><div class="wrap">
+  <div class="eyebrow">The trial &middot; three arms, one month, blind-scored</div>
+  <h2>The consumer plan, the frontier,<br/>and the frontier grounded</h2>
+  <p class="lead">Two cohorts in parallel &mdash; 25 established researchers and 25 grad students &mdash; in one field's community, each randomized across three arms that form a ladder. Each arm differs from the next by one thing, so the trial reads out two numbers: what putting a scientist at the frontier is worth, and what grounding that frontier in their community adds on top.</p>
+  <div style="height:26px"></div>
+  <div class="grid3">
+    <div class="card"><div class="k">Arm A &middot; baseline</div><h3>A consumer chat plan</h3><p>The general-purpose chat interface most AI-using scientists rely on today, provisioned at the standard consumer tier (around $20/mo). This arm anchors the trial to the field's real starting point.</p></div>
+    <div class="card"><div class="k">Arm B &middot; the frontier</div><h3>A funded frontier seat</h3><p>A funded $200/mo Claude Max seat carrying Claude Code and Anthropic's <a href="https://www.anthropic.com/news/claude-science-ai-workbench">Claude Science</a> workbench. Frontier access, no grounding. The gap from Arm A is what the seat subsidy alone buys.</p></div>
+    <div class="card" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)"><div class="k">Arm C &middot; grounded</div><h3>The seat, plus the Router</h3><p>Everything in Arm B, plus the grounded corpus and the feature set above, delivered over MCP into the same tools. The gap from Arm B is the headline: what community grounding adds.</p></div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">Two cohorts in parallel</div>
+  <div class="callout">
+    <div class="q">The trial runs two cohorts in parallel: 25 established researchers and 25 grad students, matched and randomized across the same three arms. Grounding gets measured twice &mdash; once for the researcher with a network, once for the researcher still building one &mdash; and if it does anything, it should do the most for the one with capability and no reputation yet.</div>
+    <div class="cite">The grad-student cohort is not an add-on; it is where the stakes are highest. The real promise of a PhD is apprenticeship into a community, and that apprenticeship runs through the advisor's network: a student learns to socialize in year three or four, when the conference introductions finally start. Now follow the numbers above. Researchers who adopt AI engage with 22% less of their fellow scientists' work and need fewer hands for the same work, and no one forces a PI to take on grad students. Extrapolate, and it is hard to see what a PhD program can promise its incoming cohort unless something about how young researchers get connected changes. That is the change this trial prices: the Router puts the introduction machinery in year one, exposure scaled to the work, feedback either way it lands. For the one-month window the doubled cohort's marginal cost is small &mdash; twenty-five more seats, most at $200 and a third at the consumer tier &mdash; next to the statistical power it buys.</div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="grid3">
+    <div class="card"><div class="k">Primary &middot; blinded</div><h3>Quality of real work</h3><p>Sampled outputs from each researcher's actual sessions, scored by raters kept blind to which arm produced them. These are real drafts, reviews, and analyses from the cohort's own work. We score executed work: AI ideas can rate more novel than experts' and then lose that edge once someone builds them out, so execution is what counts.</p></div>
+    <div class="card"><div class="k">Secondary &middot; mechanical</div><h3>Grounding accuracy</h3><p>Fraction of citations and claims that resolve to a real source saying what the output claims; fraction of person-references that are real, correctly attributed, and new to the researcher.</p></div>
+    <div class="card"><div class="k">Secondary &middot; reported</div><h3>Satisfaction and serendipity</h3><p>Self-reported usefulness, plus a count of the connections that surfaced on their own: citations, people, introductions rated worth the hour. It is listed as self-reported because self-report misleads here. Across studies, researchers report productivity gains that blind measurement fails to confirm, so we treat perceived usefulness as a signal and let the blind score decide.</p></div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="callout">
+    <div class="q">The trial needs only public data: a corpus built before a single researcher types a word. The headline test is Arm C against Arm B. One month decides it, and grounding beats the ungrounded frontier or the project stops, having spent a fraction of its $110,000 tranche-gated budget.</div>
+    <div class="cite">One bias, named in advance: the cohort shares a community and talks, so whatever the Router teaches Arm C leaks into Arm B over coffee. Contamination drags the measured difference toward zero, which makes any surviving margin a floor: the true effect can only be larger. Participation requires study telemetry only, with a per-session off-the-record toggle, and how often the toggle gets used is itself reported. Contributing to the commons stays voluntary per entry, and the seat is funded either way. Seats are the small part of the $110,000; most of it is rater time, engineering, and the tranche reserve. Budget, milestones, and funding detail: <a href="https://github.com/jameslbarnes/research-router/blob/main/out/PITCH.md">the pilot memo</a>.</div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">Month zero</div>
+  <div class="callout">
+    <div class="q">The trial does not have to start as a trial. Month zero is an open invitation: run the grounded seat inside your own group, on your own students &mdash; same corpus, same Router, no protocol, no raters, your rules. If the tool earns its place in a close network, it recruits the cohort itself.</div>
+    <div class="cite">The informal run is not a detour from rigor; it is the power analysis the formal design needs, replacing guessed effect sizes with numbers from real sessions before the arms are sized and before a dollar of the $110,000 moves. And the result belongs to the field either way: a pre-registered grounding trial &mdash; a natural fit for an IC3 (Initiative for Cryptocurrencies and Contracts) research contribution, if the anchor group wants it there &mdash; is publishable whichever direction the delta falls.</div>
+  </div>
+</div></section>
+
+<!-- IMPLICATIONS -->
+<section id="implications"><div class="wrap">
+  <div class="eyebrow">If the hypothesis is right</div>
+  <h2>What a positive result means</h2>
+  <div class="grid2" style="align-items:start">
+    <div class="card"><div class="k">For the tools</div><h3>Grounding becomes a measured lever</h3><p>A thin context-and-tools layer, built by a small team with no training run, measurably improves the best research environment a frontier lab ships. If it holds, the same recipe should transfer to other fields, since it grounds generic agents in whatever people and literature a field already has. We test it first in cryptography on purpose, one of the heaviest-adopting and most AI-savvy fields, so clearing that bar is the hard case; whether the gain carries to lighter-adoption fields is for replication to show.</p></div>
+    <div class="card"><div class="k">For the incentives</div><h3>Sharing becomes rational</h3><p>Attested timestamps protect priority without publication, which removes the main reason researchers keep unfinished ideas to themselves. They can talk months earlier. The group chat the incentive structure has been suppressing becomes safe to have: credit goes to whoever is first through the territory, and the timestamp is the flag.</p></div>
+    <div class="card"><div class="k">For the record</div><h3>Reasoning stops evaporating</h3><p>The dead ends, the killed constructions, and the counterexamples that drove the work get preserved in the researcher's own words, owned by the researcher, verifiable by anyone. The commons compounds: every approved entry and every match rating sharpens the map for the next researcher.</p></div>
+    <div class="card"><div class="k">For the field</div><h3>A counterweight to centralization</h3><p>Follow the trend to its end: the field's best researcher gets hired by a frontier lab, does all the research, and nobody else needs funding &mdash; a tragic outcome for anyone who thinks science is a commons, and the direction the numbers above already point: when AI professors left for industry, the leavers' share of the field's citations rose from about 5% to nearly 19%. Jeff Hammerbacher watched the best minds of his generation measure how to get people to click on ads; the same absorption is coming for science, at better salaries. Some thinking has to be insulated from the pressure of selling things, and that insulation now requires infrastructure: a connective layer that is neutral and researcher-owned, funded at $300-a-month institutional seats &mdash; the $200 frontier seat plus the Router layer &mdash; without a single researcher's data ever being the product.</p></div>
+  </div>
+  <div style="height:26px"></div>
+  <div class="eyebrow">The endgame</div>
+  <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+    <div class="q">This trial is month one of a longer argument. The endgame: unlimited frontier tokens for PhD researchers and grad students to work on the world's hardest problems &mdash; together, as a network, outside the confines of the frontier labs &mdash; funded as a public good.</div>
+    <div class="cite">A one-month RCT with a clean Arm-C-minus-Arm-B delta is precisely the evidence that case needs. It prices what a grounded frontier seat is worth to science, researcher by researcher, and a priced result lets a public-goods funder &mdash; the Vitaliks of the world &mdash; underwrite seats at scale instead of on faith. The old promise of academia was that curiosity and hard work earned you the resources to pursue the problems you cared about; this is how that promise comes back. Month one buys the argument. Contact: barnes.james@gmail.com &middot; calibration ratings: <a href="rate.html">the rating exercise</a>.</div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <img src="disco.png" alt="Router" style="width:40px;height:40px;border-radius:50%;margin-bottom:18px;animation:spin 26s linear infinite"/>
+  <div class="links">
+    <a href="https://router.teleport.computer">router.teleport.computer</a>
+    <a href="https://github.com/jameslbarnes/teleport-router">teleport-router</a>
+    <a href="https://tinycloud.xyz">tinycloud.xyz</a>
+    <a href="../lit-review/main.pdf">The literature review</a>
+    <a href="https://github.com/jameslbarnes/research-router/blob/main/out/PANEL.md">The full matching analysis</a>
+  </div>
+  <div class="ded">"This router is dedicated to the common understanding of all humanity."</div>
+  <div class="small">The Research Router &middot; a prototype matching engine (human-router), the Router commons (teleport-router), and sovereign custody (TinyCloud). Built on live OpenAlex data; every quote verbatim from the cited papers.</div>
+</div></footer>
+
+<script>
+const DATA = {
+  funnel:[
+    {n:'314',v:314,l:'<b>direct coauthors</b> (set aside)'},
+    {n:'4,960',v:4960,l:'coauthors-of-coauthors <span style="color:var(--ink-faint)">(a lower bound)</span>'},
+    {n:'300',v:300,l:'best-bridged kept'},
+    {n:'137',v:137,l:'cleared the shared-thread gate'},
+    {n:'7',v:7,l:'<b>vetted finalists</b>'},
+  ],
+  cands:[
+    {name:'Junbin Fang',aff:'Jinan University (Guangzhou)',bridge:'Classical BFT consensus & MPC ↔ quantum cryptography & optoelectronics',
+     mesh:'The quantum Byzantine-agreement protocols he co-authors sidestep the classical t &lt; n/3 barrier for the detectable Byzantine problem; her lower bounds say exactly what that sidestep costs.',
+     discovery:5,novelty:6,apart:93,top:true},
+    {name:'Nicolas Papernot',aff:'University of Toronto / Vector Institute',bridge:'Cryptography & oblivious computation ↔ machine learning security',
+     mesh:'Machine unlearning has no verifiable guarantees; her SNARKs and MPC are the missing half.',
+     discovery:3.5,novelty:7,apart:60},
+    {name:'Pierre-Yves Strub',aff:'PQShield',bridge:'Oblivious algorithms ↔ machine-checked proofs & verified compilation',
+     mesh:'His EasyCrypt coupling logics are the machinery her differential-obliviousness proofs need to become machine-checked.',
+     discovery:3.5,novelty:7,apart:60},
+    {name:'Deepak Garg',aff:'MPI-SWS, Saarbrücken',bridge:'ORAM & MPC theory ↔ programming languages, verification & TEE systems',
+     mesh:'He verifies systems down to the machine code and runs analytics inside TEEs; her ORAM and MPC theory is exactly the layer those systems need proved.',
+     discovery:3.5,novelty:7,apart:40},
+    {name:'Santiago Zanella-Béguelin',aff:'Microsoft Research Cambridge',bridge:'ORAM & differential obliviousness ↔ confidential AI systems & LLM privacy',
+     mesh:'He ships confidential AI on attested hardware; her differential obliviousness is the leakage story those deployments are missing.',
+     discovery:3.5,novelty:6,apart:65},
+    {name:'Ruoxi Jia',aff:'Virginia Tech',bridge:'Blockchain mechanism design & MPC ↔ data valuation & the data economy',
+     mesh:'Jia prices data with Shapley values; Shi\'s mechanism design could make that marketplace private and incentive-compatible.',
+     discovery:3.5,novelty:6,apart:60},
+    {name:'Zhan Qin',aff:'Zhejiang University',bridge:'Differential obliviousness & shuffle-model privacy ↔ deployed LDP systems & AI security',
+     mesh:'He deploys local differential privacy at production scale; her shuffle-model bounds say what those deployments can and cannot hide.',
+     discovery:3,novelty:5,apart:70},
+  ]
+};
+const fEl=document.getElementById('funnel');
+const fMax=Math.max(...DATA.funnel.map(f=>f.v));
+DATA.funnel.forEach(f=>{
+  const w=Math.round(58*Math.log10(f.v)/Math.log10(fMax));
+  const row=document.createElement('div');row.className='frow';
+  row.innerHTML=`<div class="fbar" style="width:${w}%">${f.n}</div><div class="flabel">${f.l}</div>`;
+  fEl.appendChild(row);
+});
+const g=document.getElementById('gallery');
+DATA.cands.forEach(c=>{
+  const el=document.createElement('div');el.className='cand';
+  el.innerHTML=`
+    <div class="top"><div><div class="nm">${c.name}</div><div class="af">${c.aff}</div></div>
+      <span class="badge ${c.top?'top':''}">${c.top?'★ top match':'discovery'}</span></div>
+    <div class="br">${c.bridge}</div>
+    <div class="mesh">"${c.mesh}"</div>
+    <div class="bars">
+      <div class="mini"><span class="v">${c.discovery}</span><span class="lb">Discovery</span></div>
+      <div class="mini"><span class="v">${c.novelty}</span><span class="lb">Novelty</span></div>
+      <div class="mini"><span class="v">${c.apart}%</span><span class="lb">Paths apart</span></div>
+    </div>`;
+  g.appendChild(el);
+});
+</script>
+</body>
+</html>
