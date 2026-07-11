@@ -82,28 +82,6 @@ p.body b{color:var(--ink);}
 .card p{font-size:14.5px;line-height:1.6;color:var(--ink-dim);}
 .card h3{margin-bottom:6px;}
 
-.funnel{display:flex;flex-direction:column;gap:7px;margin:8px 0;}
-.frow{display:flex;align-items:center;gap:14px;}
-.fbar{height:34px;background:linear-gradient(90deg,var(--accent),var(--accent-2));display:flex;align-items:center;
-  padding-left:12px;color:#fff;font-weight:700;font-size:13px;min-width:60px;border:1.5px solid var(--hard);flex-shrink:0;}
-.flabel{font-size:13px;color:var(--ink-dim);} .flabel b{color:var(--ink);}
-
-/* candidate gallery */
-.gallery{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px;}
-@media(max-width:680px){.gallery{grid-template-columns:1fr;}}
-.cand{border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:18px 20px;display:flex;flex-direction:column;gap:8px;}
-.cand .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
-.cand .nm{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--ink);}
-.cand .af{font-size:11.5px;color:var(--ink-faint);}
-.cand .br{font-size:13.5px;color:var(--ink-dim);line-height:1.5;}
-.cand .mesh{font-family:var(--serif);font-size:14.5px;line-height:1.55;color:var(--ink);font-style:italic;}
-.cand .bars{display:flex;gap:16px;margin-top:4px;}
-.mini{display:flex;flex-direction:column;gap:2px;}
-.mini .v{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--accent);}
-.mini .lb{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
-.badge{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border:1px solid #0b8a7a;color:#0b8a7a;background:rgba(0,224,198,.08);white-space:nowrap;}
-.badge.top{border-color:var(--accent);color:#fff;background:var(--accent);}
-
 /* feature list */
 .featlist{display:flex;flex-direction:column;gap:14px;margin-top:8px;}
 .feat{display:flex;gap:16px;border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:18px 20px;align-items:flex-start;}
@@ -279,7 +257,7 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   </div>
   <div style="height:24px"></div>
   <p class="body">The default picture of AI in research &mdash; ask a model to one-shot a theorem or a paper &mdash; is the smallest corner of the design space. At frontier capability the researcher's job is pointing the model into territory it would not reach alone, and one researcher covers one basin of attention. A network of researchers with overlapping but distinct interests, each steering their own grounded agent, covers the field: a group chat instead of a private channel. That is the mechanism the Router bets on; the trial measures whether the bet pays.</p>
-  <p class="body">"Grounded in their community" means the agent has the researcher's own papers, their coauthors' papers, and the two-hop network around them as working context, plus tools that act on that context: surfacing relevant work, protecting priority so early sharing is safe, and finding the collaborators just outside the researcher's own circle. The trial section's three-arm ladder separates what frontier access is worth from what grounding adds &mdash; the two numbers this page turns on.</p>
+  <p class="body">"Grounded in their community" means the agent has the researcher's own papers, their coauthors' papers, and the network one hop beyond them as working context, plus tools that act on that context: surfacing relevant work, protecting priority so early sharing is safe, and turning the live work just outside the researcher's own circle into threads worth pulling on. The trial section's three-arm ladder separates what frontier access is worth from what grounding adds &mdash; the two numbers this page turns on.</p>
   <p class="body">This also answers the obvious objection. If ungrounded AI is what thins the room, why would more AI help? Because the isolation comes from a tool that keeps every question and answer between the researcher and the model. Grounding plus approve-to-post keeps the researcher in the loop, editing and signing what the agent keeps. That human-in-the-loop mode is the one the evidence shows both raises quality and <b>preserves</b> the researcher's own expertise, where handing the work off wholesale erodes both. The lonely-crowd result is a design choice. Build the tool to point outward and the outcome flips. Grounding is the single variable this trial isolates.</p>
 </div></section>
 
@@ -331,12 +309,12 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   <div class="featlist">
     <div class="feat"><div class="n">01</div><div>
       <h4>Insights every morning about the people and ideas around you</h4>
-      <p>Overnight, the agent reads new arXiv postings, the latest work of your coauthors and the people the engine says you should follow, and fresh entries in the commons, all against your own open drafts and live threads. By the time you sit down you have a short digest: this result tightens a bound you lean on, that preprint pushes on an assumption in your section 4, this researcher two fields over is circling the same question you are. Researchers who turned off ePrint (cryptography's arXiv) because the volume beat them get the room back, filtered, with every line tied to their own work.</p>
+      <p>Overnight, the agent reads new arXiv postings, the latest work of your coauthors and the people one hop beyond them, and fresh entries in the commons, all against your own open drafts and live threads. By the time you sit down you have a short digest: this result tightens a bound you lean on, that preprint pushes on an assumption in your section 4, this researcher two fields over is circling the same question you are. Researchers who turned off ePrint (cryptography's arXiv) because the volume beat them get the room back, filtered, with every line tied to their own work.</p>
       <span class="tag">tests: quality &middot; satisfaction</span>
     </div></div>
     <div class="feat"><div class="n">02</div><div>
       <h4>Your whole field as working memory</h4>
-      <p>Your papers, your coauthors' papers, the distant people the engine picked for you, and the record around them all, indexed and queryable, with every citation resolving to the actual passage &mdash; surfaced as you draft, so the reference that belongs in a paragraph arrives while you are writing it. That is the gap between a confident guess and a checkable answer: <a href="https://www.nature.com/articles/s41598-023-41032-5">Walters &amp; Wilder</a> analyzed 636 citations in ChatGPT-generated literature reviews and found 55% of GPT-3.5's and 18% of GPT-4's fabricated outright, often under real journal names. Trust is the binding constraint at the frontier, and a corpus where every claim lands on a real passage is how you earn it.</p>
+      <p>Your papers, your coauthors' papers, the network one hop beyond them, and the record underneath it all, indexed and queryable, with every citation resolving to the actual passage &mdash; surfaced as you draft, so the reference that belongs in a paragraph arrives while you are writing it. That is the gap between a confident guess and a checkable answer: <a href="https://www.nature.com/articles/s41598-023-41032-5">Walters &amp; Wilder</a> analyzed 636 citations in ChatGPT-generated literature reviews and found 55% of GPT-3.5's and 18% of GPT-4's fabricated outright, often under real journal names. Trust is the binding constraint at the frontier, and a corpus where every claim lands on a real passage is how you earn it.</p>
       <span class="tag">tests: quality &middot; grounding accuracy</span>
     </div></div>
     <div class="feat"><div class="n">03</div><div>
@@ -355,8 +333,8 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
       <span class="tag">tests: satisfaction &middot; serendipity</span>
     </div></div>
     <div class="feat"><div class="n">06</div><div>
-      <h4>The collaborators just outside your view</h4>
-      <p>This is the heart of the Router: connecting you with the people you would otherwise never see. It walks your field's real coauthorship graph and surfaces the researchers just past your line of sight, ranked by <b>productive distance</b>: enough shared ground to hold a conversation, enough divergence to make it worth having. Once the engine finds them it brings them close: their corpus, new preprints, and live work start flowing into your context and your digest. And because the commons holds work as it is produced, introductions land mid-problem &mdash; not a year later in each other's published abstracts &mdash; while the collaboration can still shape both papers. We have run this end to end already, and the results are below.</p>
+      <h4>The conversations hiding just outside your view</h4>
+      <p>The Router does not propose meetings; nobody wants another coffee with a stranger, however well-matched. It reads the live work of your network &mdash; your coauthors and the people one hop beyond them &mdash; against your own, and surfaces the collisions as substance: <b>you might talk about X and Y</b>, with the specific results attached. Not "here is a person worth meeting" but "this bound of yours and that protocol of theirs are the same conversation." Because the commons holds work as it is produced, the thread lands mid-problem &mdash; not a year later in each other's published abstracts &mdash; and whether it becomes an email, a shared draft, or a joint paper is yours to decide; either way it starts from shared substance, not small talk.</p>
       <span class="tag">tests: serendipity</span>
     </div></div>
   </div>
@@ -381,7 +359,7 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   <div style="height:26px"></div>
   <div class="eyebrow">The attribution question</div>
   <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
-    <div class="q">The commons runs on contributed reasoning, and contributed reasoning demands credit. When the Router relays your killed construction into someone else's proof, the coauthor list has no row for what happened, and a system that takes your thinking without returning credit deserves to fail. It cannot be left unsolved, so the pilot ships the primitive any answer needs: every time a Router-surfaced item is confirmed useful to someone's work, one upvote &mdash; one signed edge in the graph of who informed what, logged on the same attested trail that already carries the commons. The trial collects these edges from day one; the introductions rated as worth the hour they cost are the first of them.</div>
+    <div class="q">The commons runs on contributed reasoning, and contributed reasoning demands credit. When the Router relays your killed construction into someone else's proof, the coauthor list has no row for what happened, and a system that takes your thinking without returning credit deserves to fail. It cannot be left unsolved, so the pilot ships the primitive any answer needs: every time a Router-surfaced item is confirmed useful to someone's work, one upvote &mdash; one signed edge in the graph of who informed what, logged on the same attested trail that already carries the commons. The trial collects these edges from day one; the surfaced threads a researcher confirms were new and useful are the first of them.</div>
     <div class="cite">Two things get built on that log. A Router score: how often your work surfaced in others' sessions and whose results it informed &mdash; the connective work the citation record has never counted, collected first, formalized later. And a new kind of acknowledgement section, parallel to the coauthor list, that renders the relay graph in a form that fits at the end of a paper.</div>
   </div>
 </div></section>
@@ -389,25 +367,21 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
 <!-- EVIDENCE -->
 <section id="evidence"><div class="wrap">
   <div class="eyebrow">Proof it runs</div>
-  <h2>The hard part is<br/>already built</h2>
-  <p class="lead">Everything else on this page is a promise. This part has already been run, end to end. It is the matching engine from the section above, the one that finds the people you would otherwise never see and brings their work to you, and we have run it start to finish on a real community. We used Elaine Shi, the CMU cryptographer, because her community is dense, public, and unforgiving &mdash; and cryptographers are the hardest audience the confidentiality design will ever face, which is why it has to be the first test, not the last. Everything below comes straight from her public record. Whether the matches are any good is precisely what we cannot judge ourselves; the <a href="rate.html">rating page</a> exists so she can tell us &mdash; including that the whole thing misses.</p>
+  <h2>The grounded context is<br/>already built</h2>
+  <p class="lead">Everything else on this page is a promise. This part has already been run, end to end: the grounded context, built for a real researcher from nothing but public data. We used Elaine Shi, the CMU cryptographer, because her community is dense, public, and unforgiving &mdash; and cryptographers are the hardest audience the confidentiality design will ever face, which is why it has to be the first test, not the last.</p>
   <div style="height:24px"></div>
   <div class="grid2" style="align-items:start">
     <div class="card">
-      <div class="k">The fan-out</div>
-      <div class="funnel" id="funnel"></div>
-      <p style="margin-top:10px">314 direct coauthors (set aside) → their coauthors → narrowed by bridge strength → through a shared-thread gate → <b style="color:var(--ink)">7 vetted finalists</b>. Bar widths are log-scaled so the 4,960 and the 7 fit on one chart; the 4,960 is a lower bound, since the walk covers the top 30 of the 314 bridges.</p>
+      <div class="k">The corpus</div>
+      <h3>One researcher's community, indexed</h3>
+      <p>Her papers, her <b style="color:var(--ink)">314 coauthors</b>, and the <b style="color:var(--ink)">4,960 researchers</b> one hop beyond them, walked from live OpenAlex data, indexed and queryable, with citations resolving to the actual passages. This is the working context Arm C starts from, and it exists before a single researcher in the trial types a word.</p>
     </div>
-    <div class="card">
-      <div class="k">The signal that mattered</div>
-      <h3>Shared ideas, separate paths</h3>
-      <p>Citations measure engagement with the <em>work</em>. Acquaintance is a separate signal, so it gets its own model &mdash; academic genealogy, community co-membership, bridge distance &mdash; and that model discounts each match's rank. The discount inverts the naive ordering. David Woodruff looks like the obvious match on paper, but he is Shi's own CMU department colleague: his acquaintance score maxed out, off the list. What rises instead is <b style="color:var(--accent-2)">Junbin Fang</b>, an optoelectronic-engineering professor at Jinan University in Guangzhou who co-authored a quantum Byzantine-agreement protocol that collides with her classical consensus bounds, from a community far outside her orbit.</p>
+    <div class="card" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
+      <div class="k">What it surfaces</div>
+      <h3>Threads, not introductions</h3>
+      <p>Read against her own results, that context yields the digest the features above describe. A quantum Byzantine-agreement protocol one hop out collides with her classical consensus lower bounds; a machine-unlearning line keeps asking for exactly the verifiable-computation machinery she builds. Each arrives as <em>you might talk about X and Y</em>, with the papers attached &mdash; substance she can act on or ignore, not a meeting request. Her read on those drafts is the calibration the pilot starts from.</p>
     </div>
   </div>
-  <div style="height:24px"></div>
-  <div class="gallery" id="gallery"></div>
-  <p class="small">Scales: discovery and novelty are review-panel scores out of 10; "paths apart" is 100 minus a modeled probability the two have already met, built only from public signals.</p>
-  <p class="body" style="margin-top:20px">The vetting panel is a set of LLM reviewer agents with web search &mdash; a cheap, reproducible critic &mdash; and the final ordering is the panel's judgment, not the formula's. Human judgment is the real bar, so every match ships with a rating loop, and the <a href="rate.html">rating exercise</a> collects the anchor researcher's scores as calibration labels before the pilot starts. Each rating does double duty: it sharpens the ranking for everyone, and accepting a match pulls that person's public corpus straight into your grounded context, so the agent that drafts with you tomorrow already knows the collaborator you said yes to today. The full per-candidate analysis, including the pairs the engine ruled out and why, is in <a href="https://github.com/jameslbarnes/research-router/blob/main/out/PANEL.md">PANEL.md</a>.</p>
 </div></section>
 
 <!-- TRIAL -->
@@ -425,13 +399,13 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   <div class="eyebrow">Two cohorts in parallel</div>
   <div class="callout">
     <div class="q">The trial runs two cohorts in parallel: 25 established researchers and 25 grad students, matched and randomized across the same three arms. Grounding gets measured twice &mdash; once for the researcher with a network, once for the researcher still building one &mdash; and if it does anything, it should do the most for the one with capability and no reputation yet.</div>
-    <div class="cite">The grad-student cohort is not an add-on; it is where the stakes are highest. The real promise of a PhD is apprenticeship into a community, and that apprenticeship runs through the advisor's network: a student learns to socialize in year three or four, when the conference introductions finally start. Now follow the numbers above. Researchers who adopt AI engage with 22% less of their fellow scientists' work and need fewer hands for the same work, and no one forces a PI to take on grad students. Extrapolate, and it is hard to see what a PhD program can promise its incoming cohort unless something about how young researchers get connected changes. That is the change this trial prices: the Router puts the introduction machinery in year one, exposure scaled to the work, feedback either way it lands. For the one-month window the doubled cohort's marginal cost is small &mdash; twenty-five more seats, most at $200 and a third at the consumer tier &mdash; next to the statistical power it buys.</div>
+    <div class="cite">The grad-student cohort is not an add-on; it is where the stakes are highest. The real promise of a PhD is apprenticeship into a community, and that apprenticeship runs through the advisor's network: a student learns to socialize in year three or four, when the conference introductions finally start. Now follow the numbers above. Researchers who adopt AI engage with 22% less of their fellow scientists' work and need fewer hands for the same work, and no one forces a PI to take on grad students. Extrapolate, and it is hard to see what a PhD program can promise its incoming cohort unless something about how young researchers get connected changes. That is the change this trial prices: the Router puts the connective machinery in year one, exposure scaled to the work, feedback either way it lands. For the one-month window the doubled cohort's marginal cost is small &mdash; twenty-five more seats, most at $200 and a third at the consumer tier &mdash; next to the statistical power it buys.</div>
   </div>
   <div style="height:26px"></div>
   <div class="grid3">
     <div class="card"><div class="k">Primary &middot; blinded</div><h3>Quality of real work</h3><p>Sampled outputs from each researcher's actual sessions, scored by raters kept blind to which arm produced them. These are real drafts, reviews, and analyses from the cohort's own work. We score executed work: AI ideas can rate more novel than experts' and then lose that edge once someone builds them out, so execution is what counts.</p></div>
     <div class="card"><div class="k">Secondary &middot; mechanical</div><h3>Grounding accuracy</h3><p>Fraction of citations and claims that resolve to a real source saying what the output claims; fraction of person-references that are real, correctly attributed, and new to the researcher.</p></div>
-    <div class="card"><div class="k">Secondary &middot; reported</div><h3>Satisfaction and serendipity</h3><p>Self-reported usefulness, plus a count of the connections that surfaced on their own: citations, people, introductions rated worth the hour. It is listed as self-reported because self-report misleads here. Across studies, researchers report productivity gains that blind measurement fails to confirm, so we treat perceived usefulness as a signal and let the blind score decide.</p></div>
+    <div class="card"><div class="k">Secondary &middot; reported</div><h3>Satisfaction and serendipity</h3><p>Self-reported usefulness, plus a count of the connections that surfaced on their own: citations, people, and threads the researcher confirms were new and useful. It is listed as self-reported because self-report misleads here. Across studies, researchers report productivity gains that blind measurement fails to confirm, so we treat perceived usefulness as a signal and let the blind score decide.</p></div>
   </div>
   <div style="height:26px"></div>
   <div class="callout">
@@ -453,14 +427,14 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   <div class="grid2" style="align-items:start">
     <div class="card"><div class="k">For the tools</div><h3>Grounding becomes a measured lever</h3><p>A thin context-and-tools layer, built by a small team with no training run, measurably improves the best research environment a frontier lab ships. If it holds, the same recipe should transfer to other fields, since it grounds generic agents in whatever people and literature a field already has. We test it first in cryptography on purpose, one of the heaviest-adopting and most AI-savvy fields, so clearing that bar is the hard case; whether the gain carries to lighter-adoption fields is for replication to show.</p></div>
     <div class="card"><div class="k">For the incentives</div><h3>Sharing becomes rational</h3><p>Attested timestamps protect priority without publication, which removes the main reason researchers keep unfinished ideas to themselves. They can talk months earlier. The group chat the incentive structure has been suppressing becomes safe to have: credit goes to whoever is first through the territory, and the timestamp is the flag.</p></div>
-    <div class="card"><div class="k">For the record</div><h3>Reasoning stops evaporating</h3><p>The dead ends, the killed constructions, and the counterexamples that drove the work get preserved in the researcher's own words, owned by the researcher, verifiable by anyone. The commons compounds: every approved entry and every match rating sharpens the map for the next researcher.</p></div>
+    <div class="card"><div class="k">For the record</div><h3>Reasoning stops evaporating</h3><p>The dead ends, the killed constructions, and the counterexamples that drove the work get preserved in the researcher's own words, owned by the researcher, verifiable by anyone. The commons compounds: every approved entry and every confirmed thread sharpens the map for the next researcher.</p></div>
     <div class="card"><div class="k">For the field</div><h3>A counterweight to centralization</h3><p>Follow the trend to its end: the field's best researcher gets hired by a frontier lab, does all the research, and nobody else needs funding &mdash; a tragic outcome for anyone who thinks science is a commons, and the direction the numbers above already point: when AI professors left for industry, the leavers' share of the field's citations rose from about 5% to nearly 19%. Jeff Hammerbacher watched the best minds of his generation measure how to get people to click on ads; the same absorption is coming for science, at better salaries. Some thinking has to be insulated from the pressure of selling things, and that insulation now requires infrastructure: a connective layer that is neutral and researcher-owned, funded at $300-a-month institutional seats &mdash; the $200 frontier seat plus the Router layer &mdash; without a single researcher's data ever being the product.</p></div>
   </div>
   <div style="height:26px"></div>
   <div class="eyebrow">The endgame</div>
   <div class="callout" style="border-color:var(--accent);box-shadow:7px 7px 0 var(--accent)">
     <div class="q">This trial is month one of a longer argument. The endgame: unlimited frontier tokens for PhD researchers and grad students to work on the world's hardest problems &mdash; together, as a network, outside the confines of the frontier labs &mdash; funded as a public good.</div>
-    <div class="cite">A one-month RCT with a clean Arm-C-minus-Arm-B delta is precisely the evidence that case needs. It prices what a grounded frontier seat is worth to science, researcher by researcher, and a priced result lets a public-goods funder &mdash; the Vitaliks of the world &mdash; underwrite seats at scale instead of on faith. The old promise of academia was that curiosity and hard work earned you the resources to pursue the problems you cared about; this is how that promise comes back. Month one buys the argument. Contact: barnes.james@gmail.com &middot; calibration ratings: <a href="rate.html">the rating exercise</a>.</div>
+    <div class="cite">A one-month RCT with a clean Arm-C-minus-Arm-B delta is precisely the evidence that case needs. It prices what a grounded frontier seat is worth to science, researcher by researcher, and a priced result lets a public-goods funder &mdash; the Vitaliks of the world &mdash; underwrite seats at scale instead of on faith. The old promise of academia was that curiosity and hard work earned you the resources to pursue the problems you cared about; this is how that promise comes back. Month one buys the argument. Contact: barnes.james@gmail.com.</div>
   </div>
 </div></section>
 
@@ -471,68 +445,10 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
     <a href="https://github.com/jameslbarnes/teleport-router">teleport-router</a>
     <a href="https://tinycloud.xyz">tinycloud.xyz</a>
     <a href="../lit-review/main.pdf">The literature review</a>
-    <a href="https://github.com/jameslbarnes/research-router/blob/main/out/PANEL.md">The full matching analysis</a>
   </div>
   <div class="ded">"This router is dedicated to the common understanding of all humanity."</div>
-  <div class="small">The Research Router &middot; a prototype matching engine (human-router), the Router commons (teleport-router), and sovereign custody (TinyCloud). Built on live OpenAlex data; every quote verbatim from the cited papers.</div>
+  <div class="small">The Research Router &middot; a grounded-context prototype (human-router), the Router commons (teleport-router), and sovereign custody (TinyCloud). Built on live OpenAlex data; every quote verbatim from the cited papers.</div>
 </div></footer>
 
-<script>
-const DATA = {
-  funnel:[
-    {n:'314',v:314,l:'<b>direct coauthors</b> (set aside)'},
-    {n:'4,960',v:4960,l:'coauthors-of-coauthors <span style="color:var(--ink-faint)">(a lower bound)</span>'},
-    {n:'300',v:300,l:'best-bridged kept'},
-    {n:'137',v:137,l:'cleared the shared-thread gate'},
-    {n:'7',v:7,l:'<b>vetted finalists</b>'},
-  ],
-  cands:[
-    {name:'Junbin Fang',aff:'Jinan University (Guangzhou)',bridge:'Classical BFT consensus & MPC ↔ quantum cryptography & optoelectronics',
-     mesh:'The quantum Byzantine-agreement protocols he co-authors sidestep the classical t &lt; n/3 barrier for the detectable Byzantine problem; her lower bounds say exactly what that sidestep costs.',
-     discovery:5,novelty:6,apart:93,top:true},
-    {name:'Nicolas Papernot',aff:'University of Toronto / Vector Institute',bridge:'Cryptography & oblivious computation ↔ machine learning security',
-     mesh:'Machine unlearning has no verifiable guarantees; her SNARKs and MPC are the missing half.',
-     discovery:3.5,novelty:7,apart:60},
-    {name:'Pierre-Yves Strub',aff:'PQShield',bridge:'Oblivious algorithms ↔ machine-checked proofs & verified compilation',
-     mesh:'His EasyCrypt coupling logics are the machinery her differential-obliviousness proofs need to become machine-checked.',
-     discovery:3.5,novelty:7,apart:60},
-    {name:'Deepak Garg',aff:'MPI-SWS, Saarbrücken',bridge:'ORAM & MPC theory ↔ programming languages, verification & TEE systems',
-     mesh:'He verifies systems down to the machine code and runs analytics inside TEEs; her ORAM and MPC theory is exactly the layer those systems need proved.',
-     discovery:3.5,novelty:7,apart:40},
-    {name:'Santiago Zanella-Béguelin',aff:'Microsoft Research Cambridge',bridge:'ORAM & differential obliviousness ↔ confidential AI systems & LLM privacy',
-     mesh:'He ships confidential AI on attested hardware; her differential obliviousness is the leakage story those deployments are missing.',
-     discovery:3.5,novelty:6,apart:65},
-    {name:'Ruoxi Jia',aff:'Virginia Tech',bridge:'Blockchain mechanism design & MPC ↔ data valuation & the data economy',
-     mesh:'Jia prices data with Shapley values; Shi\'s mechanism design could make that marketplace private and incentive-compatible.',
-     discovery:3.5,novelty:6,apart:60},
-    {name:'Zhan Qin',aff:'Zhejiang University',bridge:'Differential obliviousness & shuffle-model privacy ↔ deployed LDP systems & AI security',
-     mesh:'He deploys local differential privacy at production scale; her shuffle-model bounds say what those deployments can and cannot hide.',
-     discovery:3,novelty:5,apart:70},
-  ]
-};
-const fEl=document.getElementById('funnel');
-const fMax=Math.max(...DATA.funnel.map(f=>f.v));
-DATA.funnel.forEach(f=>{
-  const w=Math.round(58*Math.log10(f.v)/Math.log10(fMax));
-  const row=document.createElement('div');row.className='frow';
-  row.innerHTML=`<div class="fbar" style="width:${w}%">${f.n}</div><div class="flabel">${f.l}</div>`;
-  fEl.appendChild(row);
-});
-const g=document.getElementById('gallery');
-DATA.cands.forEach(c=>{
-  const el=document.createElement('div');el.className='cand';
-  el.innerHTML=`
-    <div class="top"><div><div class="nm">${c.name}</div><div class="af">${c.aff}</div></div>
-      <span class="badge ${c.top?'top':''}">${c.top?'★ top match':'discovery'}</span></div>
-    <div class="br">${c.bridge}</div>
-    <div class="mesh">"${c.mesh}"</div>
-    <div class="bars">
-      <div class="mini"><span class="v">${c.discovery}</span><span class="lb">Discovery</span></div>
-      <div class="mini"><span class="v">${c.novelty}</span><span class="lb">Novelty</span></div>
-      <div class="mini"><span class="v">${c.apart}%</span><span class="lb">Paths apart</span></div>
-    </div>`;
-  g.appendChild(el);
-});
-</script>
 </body>
 </html>
