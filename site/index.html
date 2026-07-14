@@ -134,6 +134,36 @@ p.body b{color:var(--ink);}
 .taxis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);border-top:1.5px solid var(--card-line);padding-top:5px;}
 .fig figcaption{margin-top:16px;font-size:13px !important;line-height:1.6;}
 
+/* the recall survey widget */
+.svcard{border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:20px 22px;margin-top:18px;}
+.svprogress{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px;}
+.svtag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  border:1.5px solid var(--hard);padding:3px 9px;background:#fff;color:var(--ink);margin-bottom:10px;}
+.svcard h4{font-family:var(--serif);font-size:17.5px;margin-bottom:4px;}
+.svcard .blurb{font-size:14px;line-height:1.6;color:var(--ink-dim);}
+.svq{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin:16px 0 8px;}
+.svopts{display:flex;gap:10px;flex-wrap:wrap;}
+.svopt{font-family:var(--sans);font-size:13px;font-weight:600;padding:8px 15px;border:2px solid var(--card-line);
+  background:#fff;color:var(--ink-dim);cursor:pointer;}
+.svopt:hover{border-color:var(--hard);color:var(--ink);}
+.svopt.sel{border-color:var(--accent);color:var(--accent);box-shadow:3px 3px 0 var(--accent);}
+.svnav{display:flex;justify-content:space-between;align-items:center;margin-top:18px;}
+.svbtn{font-family:var(--sans);font-size:13.5px;font-weight:600;padding:10px 18px;border:2px solid var(--hard);
+  background:#fff;color:var(--ink);box-shadow:4px 4px 0 var(--hard);cursor:pointer;}
+.svbtn.primary{background:linear-gradient(135deg,var(--accent),#0a4ecf);color:#fff;}
+.svbtn:disabled{opacity:.35;cursor:default;}
+.svstat{display:inline-block;margin:14px 22px 0 0;}
+.svstat .v{font-family:var(--mono);font-weight:700;font-size:26px;line-height:1;color:var(--ink);}
+.svstat .l{font-size:12px;color:var(--ink-dim);margin-top:4px;}
+.svbadge{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border:1.5px solid;margin-right:8px;}
+.svbadge.surfaced{color:var(--accent);border-color:var(--accent);}
+.svbadge.real{color:var(--warn);border-color:var(--warn);}
+.svbadge.decoy{color:var(--err);border-color:var(--err);}
+.svrrow{border-top:1px solid rgba(20,16,40,.09);padding:9px 0;font-size:13px;color:var(--ink-dim);}
+.svrrow b{color:var(--ink);font-size:13px;}
+.svrrow .you{font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:2px;display:block;}
+.svdetails summary{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);cursor:pointer;margin-top:16px;}
+
 /* the router loop */
 .loopstage{position:relative;margin-top:24px;aspect-ratio:1000/760;}
 .looprecord{position:absolute;left:5%;right:5%;top:86%;
@@ -455,7 +485,7 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
   <div class="callout">
     <div class="q">Recall gets measured the way ad-lift studies measure memory: show people things and ask what stuck. At the end of the window, every participant in all three arms takes the same survey &mdash; a sample of items that were live in their field during the trial (bulletin-board entries, preprints, posts, tools), mixed with real items that never surfaced and a few fabricated decoys. Two questions per item: do you remember encountering this, and is it useful to your work?</div>
     <div class="cite">The readout is a pair of lifts. Recall lift: how much more often the grounded arm remembers real items than the other two, with the decoys catching over-claiming. Usefulness lift: the share of remembered items rated useful, which separates "the Router showed me more" from "the Router showed me more that mattered." Because participation logs traces, the survey also runs retroactively &mdash; the items that would have surfaced for a researcher in an ungrounded arm are knowable, so every arm can be scored against the same item pool. What we expect to move: quality climbs the whole ladder, A to B to C; recall barely moves from A to B and jumps at C. That jump is the delta the Router owns.</div>
-    <a class="btn primary" href="survey.html" style="display:inline-block;margin-top:18px">Try the survey prototype &rarr;</a>
+    <div id="svapp"></div>
   </div>
   <div style="height:26px"></div>
   <div class="callout">
@@ -503,6 +533,117 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
 </div></footer>
 
 <script>
+var SV_ITEMS = [
+  {tag:"ePrint preprint", status:"surfaced",
+   title:"Tighter concrete security for lattice-based threshold signatures",
+   blurb:"Revises the reduction most implementations cite, shaving the parameter sizes the old bound forced."},
+  {tag:"Bulletin-board entry", status:"surfaced",
+   title:"Why our batched ORAM construction died: a write-amplification counterexample",
+   blurb:"A signed entry from a nearby group documenting the counterexample that killed a promising design."},
+  {tag:"Tool release", status:"surfaced",
+   title:"oblivfetch 0.3 &mdash; oblivious retrieval with GPU batching",
+   blurb:"A library release a colleague's session vetted and wrote up; claims order-of-magnitude latency wins."},
+  {tag:"Post", status:"surfaced",
+   title:"Thread: three pitfalls when verifying TEE attestation quotes in production",
+   blurb:"A widely shared thread linking a new audit of quote-verification implementations."},
+  {tag:"arXiv preprint", status:"real",
+   title:"Sublinear zero-knowledge proofs for RAM programs",
+   blurb:"An adjacent-subfield result with implications for verifiable outsourced storage."},
+  {tag:"Post", status:"real",
+   title:"CFP: private information retrieval workshop co-located with SBC",
+   blurb:"A call for papers circulating in the community this month."},
+  {tag:"ePrint preprint", status:"real",
+   title:"Garbled RAM with constant overhead: a simplification",
+   blurb:"A cleaner presentation of a known construction, with a smaller constant."},
+  {tag:"ePrint preprint", status:"decoy",
+   title:"Post-quantum oblivious shuffles from isogeny walks",
+   blurb:"Claims an oblivious shuffle whose security rests on isogeny-walk hardness."},
+  {tag:"Tool release", status:"decoy",
+   title:"tee-bench 1.2 &mdash; an attestation-latency benchmarking suite",
+   blurb:"A benchmarking harness for comparing attestation flows across vendors."},
+  {tag:"Bulletin-board entry", status:"decoy",
+   title:"Reducing decoy traffic in mix-nets via learned padding schedules",
+   blurb:"A signed entry proposing learned padding to cut mix-net bandwidth overhead."}
+];
+var svAnswers = SV_ITEMS.map(function(){ return {remember:null, useful:null}; });
+var svStep = -1;
+function svRender(html){ document.getElementById('svapp').innerHTML = html; }
+
+function svIntro(){
+  svStep = -1;
+  svRender('<div class="svcard">' +
+    '<h4>Try the instrument</h4>' +
+    '<p class="blurb">You are an applied-cryptography researcher at the end of the trial window. Ten items follow &mdash; some the Router surfaced, some that existed but never reached you, some fabricated. Two questions each; about two minutes. Nothing is stored.</p>' +
+    '<div class="svnav"><button class="svbtn primary" onclick="svNext()">Begin &rarr;</button>' +
+    '<button class="svbtn" onclick="svDemo()">Skip to a sample result</button></div></div>');
+}
+
+function svItem(){
+  var it = SV_ITEMS[svStep], a = svAnswers[svStep];
+  svRender('<div class="svcard">' +
+    '<div class="svprogress">Item ' + (svStep+1) + ' / ' + SV_ITEMS.length + '</div>' +
+    '<span class="svtag">' + it.tag + '</span>' +
+    '<h4>' + it.title + '</h4>' +
+    '<p class="blurb">' + it.blurb + '</p>' +
+    '<div class="svq">Do you remember encountering this during the trial?</div>' +
+    '<div class="svopts">' + svOpt('remember','yes','Yes') + svOpt('remember','no','No') + '</div>' +
+    '<div class="svq">Would this be useful to your work?</div>' +
+    '<div class="svopts">' + svOpt('useful','yes','Yes') + svOpt('useful','somewhat','Somewhat') + svOpt('useful','no','No') + '</div>' +
+    '<div class="svnav">' +
+    '<button class="svbtn" onclick="svBack()"' + (svStep===0?' disabled':'') + '>&larr; Back</button>' +
+    '<button class="svbtn primary" onclick="svNext()"' + ((a.remember&&a.useful)?'':' disabled') + '>' +
+    (svStep===SV_ITEMS.length-1 ? 'See results &rarr;' : 'Next &rarr;') + '</button></div></div>');
+}
+
+function svOpt(q,val,label){
+  var sel = svAnswers[svStep][q]===val ? ' sel' : '';
+  return '<button class="svopt'+sel+'" onclick="svPick(\''+q+'\',\''+val+'\')">'+label+'</button>';
+}
+function svPick(q,val){ svAnswers[svStep][q]=val; svItem(); }
+function svBack(){ if(svStep>0){ svStep--; svItem(); } }
+function svNext(){ svStep++; svStep<SV_ITEMS.length ? svItem() : svReveal(); }
+
+function svDemo(){
+  SV_ITEMS.forEach(function(it,i){
+    var surf = it.status==='surfaced';
+    svAnswers[i].remember = surf ? 'yes' : (it.status==='real' && i===4 ? 'yes' : 'no');
+    svAnswers[i].useful = surf ? (i===3 ? 'somewhat' : 'yes') : (i%2 ? 'somewhat' : 'no');
+  });
+  svStep = SV_ITEMS.length; svReveal();
+}
+
+function svReveal(){
+  var real=0, rr=0, dec=0, dc=0, ur=0;
+  SV_ITEMS.forEach(function(it,i){
+    var a = svAnswers[i];
+    if(it.status==='decoy'){ dec++; if(a.remember==='yes') dc++; }
+    else { real++; if(a.remember==='yes'){ rr++; if(a.useful!=='no') ur++; } }
+  });
+  var recall=Math.round(100*rr/real), over=Math.round(100*dc/dec);
+  var corr=Math.max(0,recall-over), useful=rr?Math.round(100*ur/rr):0;
+  var rows = SV_ITEMS.map(function(it,i){
+    var a = svAnswers[i];
+    var b = it.status==='surfaced' ? '<span class="svbadge surfaced">Surfaced</span>' :
+            it.status==='real' ? '<span class="svbadge real">Real, not surfaced</span>' :
+            '<span class="svbadge decoy">Decoy</span>';
+    return '<div class="svrrow">'+b+'<b>'+it.title+'</b>' +
+      '<span class="you">you: remember &mdash; '+(a.remember||'&mdash;')+' &middot; useful &mdash; '+(a.useful||'&mdash;')+'</span></div>';
+  }).join('');
+  svRender('<div class="svcard">' +
+    '<h4>How your answers become the number</h4>' +
+    '<div>' +
+    '<span class="svstat"><span class="v">'+recall+'%</span><span class="l" style="display:block">raw recall</span></span>' +
+    '<span class="svstat"><span class="v">'+over+'%</span><span class="l" style="display:block">over-claim (decoys)</span></span>' +
+    '<span class="svstat"><span class="v">'+corr+'%</span><span class="l" style="display:block">corrected recall</span></span>' +
+    '<span class="svstat"><span class="v">'+useful+'%</span><span class="l" style="display:block">remembered &amp; useful</span></span>' +
+    '</div>' +
+    '<p class="blurb" style="margin-top:14px">Every arm takes this survey against the same item pool, drawn from logged traces. The dependent variable is the gap between arms in corrected recall of useful items &mdash; expected flat from consumer chat to the frontier seat, jumping with the Router.</p>' +
+    '<details class="svdetails"><summary>See the unmasking</summary>' + rows + '</details>' +
+    '<div class="svnav"><button class="svbtn" onclick="svRestart()">Start over</button></div></div>');
+}
+function svRestart(){ svAnswers = SV_ITEMS.map(function(){ return {remember:null,useful:null}; }); svIntro(); }
+svIntro();
+
 (function(){
   var links = document.querySelectorAll('.navlinks a');
   var byId = {};
