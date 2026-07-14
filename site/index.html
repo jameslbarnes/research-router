@@ -96,6 +96,8 @@ p.body b{color:var(--ink);}
 .featlist{display:flex;flex-direction:column;gap:14px;margin-top:8px;}
 .feat{display:flex;gap:16px;border:2px solid var(--hard);box-shadow:5px 5px 0 var(--hard);background:#fff;padding:18px 20px;align-items:flex-start;}
 .feat .n{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:14px;flex-shrink:0;width:26px;margin-top:2px;}
+.feat .art{flex-shrink:0;width:118px;height:118px;border:2px solid var(--hard);object-fit:cover;margin-left:4px;}
+@media(max-width:680px){.feat .art{display:none;}}
 .feat h4{font-family:var(--serif);font-size:17px;margin-bottom:3px;}
 .feat p{font-size:14px;line-height:1.6;color:var(--ink-dim);}
 .feat p b{color:var(--ink);}
@@ -415,32 +417,32 @@ footer .ded{font-family:var(--serif);font-style:italic;font-size:16px;color:var(
       <h4>Insights every morning about the people and ideas around you</h4>
       <p>Overnight, the agent reads new arXiv postings, the latest work of your coauthors and the people one hop beyond them, and fresh entries in the commons &mdash; not just results, but the library a colleague's session vetted or the link two grad students both found useful &mdash; all against your own open drafts and live threads. By the time you sit down you have a short digest: this result tightens a bound you lean on, that preprint pushes on an assumption in your section 4, this researcher two fields over is circling the same question you are. The promise, from day one: if something meaningful is moving in your field while you are working on it, it reaches you. Researchers who turned off ePrint (cryptography's arXiv) because the volume beat them get the room back, filtered, with every line tied to their own work.</p>
       <span class="tag">tests: quality &middot; satisfaction</span>
-    </div></div>
+    </div><img class="art" src="img/feat1.png" alt="Morning digest: network threads converging into a brief beside a coffee cup"/></div>
     <div class="feat"><div class="n">02</div><div>
       <h4>Your whole field as working memory</h4>
       <p>Your papers, your coauthors' papers, the network one hop beyond them, and the record underneath it all, indexed and queryable, with every citation resolving to the actual passage &mdash; surfaced as you draft, so the reference that belongs in a paragraph arrives while you are writing it. That is the gap between a confident guess and a checkable answer: <a href="https://www.nature.com/articles/s41598-023-41032-5">Walters &amp; Wilder</a> analyzed 636 citations in ChatGPT-generated literature reviews and found 55% of GPT-3.5's and 18% of GPT-4's fabricated outright, often under real journal names. Trust is the binding constraint at the frontier, and a corpus where every claim lands on a real passage is how you earn it.</p>
       <span class="tag">tests: quality &middot; grounding accuracy</span>
-    </div></div>
+    </div><img class="art" src="img/feat2.png" alt="Working memory: index cards fanning out of a head in profile"/></div>
     <div class="feat"><div class="n">03</div><div>
       <h4>Face the committee before it exists</h4>
       <p>Before you submit, the draft runs through a simulated panel that plays each likely reviewer: the skeptic on concrete efficiency, the theorist who asks why this relaxation is the right one. You meet the hard objections early, while there is still room to answer them inside the paper.</p>
       <span class="tag">tests: quality</span>
-    </div></div>
+    </div><img class="art" src="img/feat3.png" alt="Simulated committee: judging chairs facing a podium under a spotlight"/></div>
     <div class="feat"><div class="n">04</div><div>
       <h4>Keep the reasoning while it is still fresh</h4>
       <p>The dead ends and the killed constructions &mdash; why one approach failed, which counterexample moved a definition &mdash; usually evaporate by the next morning. Captured as entries you edit and sign, they become a durable record you own, in your own words and under your own name.</p>
       <span class="tag">tests: satisfaction</span>
-    </div></div>
+    </div><img class="art" src="img/feat4.png" alt="Preserved reasoning: a notebook maze with dead ends marked and one path traced"/></div>
     <div class="feat"><div class="n">05</div><div>
       <h4>Share early and keep the credit</h4>
       <p>Cryptography already plays this game explicitly, on ePrint. You post when the work can hold your name: early enough to claim credit, never so early that a retracted theorem tarnishes it &mdash; and the moment you hear a rival is on your problem, you rush something up just to timestamp yourself. The Router does not create that game; it changes the payoff. Each approved entry carries a <b>timestamped cryptographic commitment</b> &mdash; the entry's hash anchored publicly, provable later without revealing the entry, while the TEE attests the custody pipeline &mdash; so the timestamp holds your priority without demanding a finished draft. A peer-reviewed proceeding typically reaches the field three or four months after the work is done, an ePrint posting about a month; a committed entry exists at t&nbsp;=&nbsp;0. Cryptographers already act as if ideas arrive rather than originate &mdash; simultaneous discovery is the norm &mdash; and the timestamp is how you plant the flag without publishing the map. The people with the most to gain are the ones with the most at risk today: grad students with no reputation yet to trade on.</p>
       <span class="tag">tests: satisfaction &middot; serendipity</span>
-    </div></div>
+    </div><img class="art" src="img/feat5.png" alt="Priority: a flag planted on a hill of documents casting a clock-hand shadow"/></div>
     <div class="feat"><div class="n">06</div><div>
       <h4>The conversations hiding just outside your view</h4>
       <p>The Router does not propose meetings; nobody wants another coffee with a stranger, however well-matched. It reads the live work of your network &mdash; your coauthors and the people one hop beyond them &mdash; against your own, and surfaces the collisions as substance: <b>you might talk about X and Y</b>, with the specific results attached. Not "here is a person worth meeting" but "this bound of yours and that protocol of theirs are the same conversation." Because the commons holds work as it is produced, the thread lands mid-problem &mdash; not a year later in each other's published abstracts &mdash; and whether it becomes an email, a shared draft, or a joint paper is yours to decide; either way it starts from shared substance, not small talk.</p>
       <span class="tag">tests: serendipity</span>
-    </div></div>
+    </div><img class="art" src="img/feat6.png" alt="Collisions: two dotted threads meeting in a burst"/></div>
   </div>
   <p class="body" style="margin-top:26px">Every one of these gets sharper as models improve: today the digest surfaces the relevant paper; a stronger model will reason about the exact argument it unsettles in your draft. The grounding lives in context and tools, not in the model, so the same layer rides each new release the day it lands. It is also why the trial measures a delta &mdash; the grounded seat against the identical seat without the Router &mdash; so the result holds through model turnover.</p>
   <div style="height:26px"></div>
