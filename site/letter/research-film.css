@@ -1,0 +1,16 @@
+/* The generated white field blends into the letter's existing paper palette. */
+.research-stage{mix-blend-mode:multiply;}
+.research-poster,.research-film{position:absolute;left:50%;top:50%;width:min(100%,177.7778svh);height:min(100%,56.25vw);display:block;transform:translate(-50%,-50%);
+  mask-image:linear-gradient(to right,transparent,#000 24px,#000 calc(100% - 24px),transparent),linear-gradient(to bottom,transparent,#000 24px,#000 calc(100% - 24px),transparent);mask-composite:intersect;}
+@media(max-aspect-ratio:1/1){.research-poster,.research-film{width:min(100%,56.25svh);height:min(100%,177.7778vw);}}
+.research-poster img{display:block;width:100%;height:100%;object-fit:contain;}
+.research-film{object-fit:contain;opacity:0;pointer-events:none;}
+.research-film--journey{z-index:2;}
+.motion-toggle{position:fixed;right:max(18px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));z-index:5;
+  padding:7px 11px;background:var(--paper);border:1px solid #d8ded4;border-radius:3px;
+  color:var(--dim);font:500 11px/1.4 var(--sans);cursor:pointer;}
+.motion-toggle:hover{color:var(--green);border-color:#a5b39e;}
+.motion-toggle:focus-visible{outline:2px solid var(--green);outline-offset:3px;}
+.motion-toggle[hidden]{display:none;}
+@media(prefers-reduced-motion:reduce){.research-film,.motion-toggle{display:none;}}
+@media print{.motion-toggle{display:none;}}

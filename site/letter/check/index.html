@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Sharing audit · Bargaining For Our Minds</title>
+<meta name="description" content="Check whether your AI tools use your work to train models and find the settings you can change." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="../companion.css?v=656e0923dc" />
+</head>
+<body class="companion-page audit-page">
+<a class="skip-link" href="#sharing-content">Skip to the sharing audit</a>
+<div class="companion-art" aria-hidden="true"><img src="../assets/spatial-threads/journey-poster-mobile.jpg" alt="" /></div>
+<div class="companion-layout">
+  <aside class="companion-rail" aria-label="Sharing audit navigation">
+    <a class="letter-home" href="../studies/split-view.html">Bargaining<span>For Our Minds</span></a>
+    <div class="rail-body">
+      <p class="rail-label">Sharing audit</p>
+      <details class="contents" open>
+        <summary>Providers</summary>
+        <nav class="jump" aria-label="Providers">
+    <a href="#anthropic">Claude</a>
+    <a href="#openai">ChatGPT and Codex</a>
+    <a href="#gemini">Gemini</a>
+    <a href="#copilot">GitHub Copilot</a>
+    <a href="#cursor">Cursor</a>
+<!--JUMP-->
+  </nav>
+      </details>
+    </div>
+    <nav class="companion-links" aria-label="Related pages and signing">
+      <a href="../studies/split-view.html">Read the letter <span aria-hidden="true">↗</span></a>
+      <a href="../paper/">Read the position paper <span aria-hidden="true">↗</span></a>
+      <a class="sign-link" href="../#sign">Add your name <span aria-hidden="true">↗</span></a>
+    </nav>
+  </aside>
+  <main class="companion-content" id="sharing-content">
+
+  <section class="check-hero">
+    <h1>Sharing audit</h1>
+    <div>
+      <p>Use this page to check whether your AI tools train on your work. Each section gives the provider's defaults and retention terms, with steps for changing the available settings.</p>
+      <p>The information comes from the providers' own pages, checked on 28 September 2026. Terms can change. Follow the source links if something looks different.</p>
+    </div>
+  </section>
+
+
+
+  <div class="provs">
+
+  <section class="prov" id="anthropic">
+    <header><h2>Claude</h2><span class="covers">Anthropic: Claude apps, Claude Code, Claude API</span></header>
+
+    <div class="tablebox"><table>
+      <thead><tr><th>Your plan</th><th>Used for training?</th><th>How long data is kept</th></tr></thead>
+      <tbody>
+        <tr><td>Free, Pro, Max</td><td><span class="state ask">Your choice</span><br />Includes Claude Code when you sign in with one of these plans.</td><td>Up to 5 years if you allow training. 30 days if you do not.</td></tr>
+        <tr><td>Team, Enterprise, Education</td><td><span class="state off">Off by default</span></td><td>Kept while it is in your account. Deleted chats are removed within 30 days.</td></tr>
+        <tr><td>API, including Claude Code with an API key</td><td><span class="state off">Off by default</span></td><td>Deleted within 30 days.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3>In the Claude app or on claude.ai</h3>
+        <ol class="steps">
+          <li><span>Select your name, then <b>Settings</b>.</span></li>
+          <li><span>Select <b>Privacy</b>, or open <a href="https://claude.ai/settings/data-privacy-controls">Claude's privacy settings</a> directly.</span></li>
+          <li><span>Find <b>Help improve our AI models</b> and switch it on or off.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>In Claude Code</h3>
+        <ol class="steps">
+          <li><span>Type <code>/privacy-settings</code> and press Enter.</span></li>
+          <li><span>It shows your current choice and lets you change it.</span></li>
+        </ol>
+        <p style="margin-top:12px">This command works on Pro and Max plans only. It is the same account setting as the one on claude.ai, so changing it in either place changes both.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3>What still applies with training off</h3>
+      <ul class="plain">
+        <li><b>Feedback.</b> If you press thumbs up or thumbs down, or send a bug report from Claude Code, that whole conversation is kept for up to 5 years and may be used for training.</li>
+        <li><b>Safety review.</b> Conversations flagged for safety review may be used to improve safety systems, and are kept for up to 2 years.</li>
+        <li><b>Training that has already happened.</b> Turning the setting off stops future use. Work already included in a trained model stays in it.</li>
+        <li><b>Through Amazon Bedrock or Google Cloud.</b> Those providers' own terms apply, and Anthropic's settings do not.</li>
+      </ul>
+    </div>
+
+    <p class="src">Sources: Anthropic's <a href="https://privacy.claude.com/en/articles/12109829-how-do-i-change-my-model-improvement-privacy-settings">guide to the setting</a>, <a href="https://privacy.claude.com/en/articles/10023548-how-long-do-you-store-my-data">consumer retention</a>, <a href="https://privacy.claude.com/en/articles/10023580-is-my-data-used-for-model-training">consumer training</a>, <a href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training">commercial training</a>, <a href="https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data">commercial retention</a>, and <a href="https://code.claude.com/docs/en/data-usage">Claude Code data usage</a>.</p>
+  </section>
+
+  <section class="prov" id="openai">
+    <header><h2>ChatGPT and Codex</h2><span class="covers">OpenAI: ChatGPT, Codex, OpenAI API</span></header>
+
+    <div class="tablebox"><table>
+      <thead><tr><th>Your plan</th><th>Used for training?</th><th>How long data is kept</th></tr></thead>
+      <tbody>
+        <tr><td>Free, Go, Plus, Pro</td><td><span class="state on">On by default</span><br />Includes Codex when you sign in with one of these plans.</td><td>Until you delete it. Deleted chats are removed within 30 days.</td></tr>
+        <tr><td>Business, Enterprise, Edu, Academic Researchers</td><td><span class="state off">Off by default</span></td><td>Set by your workspace administrator.</td></tr>
+        <tr><td>API, including Codex with an API key</td><td><span class="state off">Off by default</span><br />Unless the owner of your organisation has opted in to share data.</td><td>Up to 30 days.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3>In ChatGPT</h3>
+        <ol class="steps">
+          <li><span>Open your account menu and select <b>Settings</b>.</span></li>
+          <li><span>Select <b>Data controls</b>.</span></li>
+          <li><span>Select <b>Improve the model for everyone</b>, turn it off, and select <b>Done</b>.</span></li>
+        </ol>
+        <p style="margin-top:12px">The setting applies to your account on every device. You can also choose <b>Do not train on my content</b> in OpenAI's <a href="https://privacy.openai.com/">Privacy Portal</a>. Either one is enough.</p>
+      </div>
+      <div>
+        <h3>In Codex</h3>
+        <ol class="steps">
+          <li><span>Turn off <b>Improve the model for everyone</b> in ChatGPT, as above. It covers your Codex tasks too.</span></li>
+          <li><span>Then open Codex settings and check <b>Include environments</b>. It is a separate setting, and the ChatGPT one does not change it.</span></li>
+        </ol>
+        <p style="margin-top:12px">Include environments controls whether additional context from your Codex environments can be used for training. OpenAI's help page links to it in <a href="https://chatgpt.com/codex/cloud/settings/general">Codex's general settings</a>.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3>What still applies with training off</h3>
+      <ul class="plain">
+        <li><b>Feedback.</b> If you press thumbs up or thumbs down, the whole conversation may be used for training even though you opted out.</li>
+        <li><b>Earlier conversations.</b> Opting out covers new conversations only.</li>
+        <li><b>Your saved chats.</b> Turning the setting off does not delete anything. Chats stay until you delete them.</li>
+        <li><b>Temporary chats.</b> These are not used for training, and OpenAI may keep a copy for up to 30 days for safety.</li>
+        <li><b>Your organisation's API settings.</b> If you use an API key, the owner of the organisation may have opted in to share inputs and outputs with OpenAI. Only they can see or change that.</li>
+      </ul>
+    </div>
+
+    <p class="src">Sources: OpenAI's <a href="https://help.openai.com/en/articles/7730893-data-controls-in-chatgpt">data controls guide</a>, <a href="https://help.openai.com/en/articles/5722486-how-your-data-is-used-to-improve-model-performance">how your data is used</a>, <a href="https://help.openai.com/en/articles/8983778-chat-and-file-retention-in-chatgpt">chat retention</a>, <a href="https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan">using Codex with ChatGPT</a>, <a href="https://openai.com/enterprise-privacy/">enterprise privacy</a>, <a href="https://developers.openai.com/api/docs/guides/your-data">API data guide</a>, and <a href="https://help.openai.com/en/articles/10306912-sharing-feedback-evaluation-and-fine-tuning-data-and-api-inputs-and-outputs-with-openai">API data sharing</a>.</p>
+  </section>
+
+  <section class="prov" id="gemini">
+    <header><h2>Gemini</h2><span class="covers">Google: Gemini app, Workspace, Gemini API, AI Studio</span></header>
+
+    <div class="tablebox"><table>
+      <thead><tr><th>Your plan</th><th>Used for training?</th><th>How long data is kept</th></tr></thead>
+      <tbody>
+        <tr><td>Gemini app, personal account</td><td><span class="state on">On by default</span><br />People at Google may read a sample of chats.</td><td>18 months by default. You can choose 3, 18, or 36 months.</td></tr>
+        <tr><td>Gemini in Google Workspace</td><td><span class="state off">Off by default</span><br />Depends on your edition. Your administrator controls it.</td><td>Set by your administrator.</td></tr>
+        <tr><td>Gemini API and AI Studio, free tier</td><td><span class="state on">On</span><br />There is no switch. People at Google may read it.</td><td>Not stated by Google.</td></tr>
+        <tr><td>Gemini API and AI Studio, paid tier</td><td><span class="state off">Off</span></td><td>Logged for 55 days to detect abuse.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3>In the Gemini app, on the web</h3>
+        <ol class="steps">
+          <li><span>Open <b>Settings &amp; help</b>, then <b>Activity</b>, or open <a href="https://myactivity.google.com/product/gemini">your Gemini activity</a> directly.</span></li>
+          <li><span>Find <b>Keep Activity</b>. If it says <b>On</b>, select it.</span></li>
+          <li><span>Choose <b>Turn off</b>, or <b>Turn off and delete activity</b> to remove past chats as well.</span></li>
+        </ol>
+        <p style="margin-top:12px">For a single conversation, a <b>temporary chat</b> is not used for training.</p>
+      </div>
+      <div>
+        <h3>For the Gemini API and AI Studio</h3>
+        <ol class="steps">
+          <li><span>Link a billing account to at least one API project.</span></li>
+          <li><span>Once billing is on, your API and AI Studio prompts fall under the paid terms and are not used for training.</span></li>
+        </ol>
+        <p style="margin-top:12px">In the European Economic Area, Switzerland, and the United Kingdom, the paid terms apply to everyone, including the free tier.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3>What still applies with Keep Activity off</h3>
+      <ul class="plain">
+        <li><b>72 hours.</b> Conversations are still saved with your account for up to 72 hours.</li>
+        <li><b>Chats already reviewed.</b> Chats that a person at Google has reviewed are kept for up to three years, and deleting your activity does not remove them.</li>
+        <li><b>Feedback.</b> If you send feedback, Google collects it along with context from the conversation.</li>
+        <li><b>Safety.</b> Google still uses chats to protect its services and users, including with human reviewers.</li>
+      </ul>
+    </div>
+
+    <p class="src">Sources: Google's <a href="https://support.google.com/gemini/answer/13594961">Gemini Apps Privacy Hub</a>, <a href="https://support.google.com/gemini/answer/13278892">managing Gemini activity</a>, <a href="https://knowledge.workspace.google.com/admin/gemini/generative-ai-in-google-workspace-privacy-hub">Workspace Privacy Hub</a>, <a href="https://ai.google.dev/gemini-api/terms">Gemini API terms</a>, <a href="https://ai.google.dev/gemini-api/docs/billing">API billing</a>, and <a href="https://ai.google.dev/gemini-api/docs/usage-policies">API usage policies</a>.</p>
+  </section>
+
+  <section class="prov" id="copilot">
+    <header><h2>GitHub Copilot</h2><span class="covers">GitHub and Microsoft</span></header>
+
+    <div class="tablebox"><table>
+      <thead><tr><th>Your plan</th><th>Used for training?</th><th>How long data is kept</th></tr></thead>
+      <tbody>
+        <tr><td>Free, Pro, Pro+</td><td><span class="state on">On by default</span><br />Since 24 April 2026. Covers your prompts, code snippets, and the responses.</td><td>Not stated by GitHub.</td></tr>
+        <tr><td>Business, Enterprise</td><td><span class="state off">Off</span></td><td>In your editor, prompts are not kept. In chat on github.com, mobile, and the command line, 28 days.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3>On github.com</h3>
+        <ol class="steps">
+          <li><span>Select your profile picture, then <b>Copilot settings</b>, or open <a href="https://github.com/settings/copilot">your Copilot settings</a> directly.</span></li>
+          <li><span>Find <b>Allow GitHub to use my data for AI model training</b>.</span></li>
+          <li><span>Set it to <b>Disabled</b>.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>If you cannot find the setting</h3>
+        <ul class="plain">
+          <li>Your account may have a Business or Enterprise licence, where training is already off.</li>
+          <li>Members of a paid organisation are excluded from training.</li>
+          <li>Students with Copilot Student, and teachers with free Copilot Pro, are not affected.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <h3>What to know</h3>
+      <ul class="plain">
+        <li><b>Who sees it.</b> Staff at GitHub and Microsoft who work on model development may access data collected for training.</li>
+        <li><b>What is left out.</b> Private repositories, issues, and discussions stored on GitHub are not used. Only what passes through Copilot is.</li>
+      </ul>
+    </div>
+
+    <p class="src">Sources: GitHub's <a href="https://docs.github.com/en/copilot/how-tos/manage-your-account/manage-policies">guide to Copilot policies</a>, <a href="https://github.blog/news-insights/company-news/updates-to-github-copilot-interaction-data-usage-policy/">policy announcement</a>, <a href="https://github.blog/changelog/2026-03-25-updates-to-our-privacy-statement-and-terms-of-service-how-we-use-your-data/">changelog</a>, <a href="https://github.com/features/copilot">Copilot FAQ</a>, and <a href="https://github.com/orgs/community/discussions/188488">community FAQ</a>.</p>
+  </section>
+
+  <section class="prov" id="cursor">
+    <header><h2>Cursor</h2><span class="covers">Anysphere</span></header>
+
+    <div class="tablebox"><table>
+      <thead><tr><th>Your plan</th><th>Used for training?</th><th>How long data is kept</th></tr></thead>
+      <tbody>
+        <tr><td>Hobby, Pro, Pro+, Ultra</td><td><span class="state ask">Check your setting</span><br />Allowed whenever Privacy Mode is off. Cursor does not state the default.</td><td>Not stated by Cursor.</td></tr>
+        <tr><td>Teams</td><td><span class="state off">Off</span><br />Cursor says this is enforced for every team member.</td><td>Not stated by Cursor.</td></tr>
+        <tr><td>Enterprise</td><td><span class="state off">Off by default</span><br />Privacy Mode is on by default.</td><td>Not stated by Cursor.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3>In Cursor</h3>
+        <ol class="steps">
+          <li><span>Open Cursor Settings with <code>Cmd + Shift + J</code> on a Mac or <code>Ctrl + Shift + J</code> on Windows or Linux.</span></li>
+          <li><span>Select <b>General</b>.</span></li>
+          <li><span>Switch <b>Privacy Mode</b> on.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>What still applies with Privacy Mode on</h3>
+        <ul class="plain">
+          <li><b>Your own API keys.</b> If you connect your own key, that provider's terms apply and Cursor's protections do not.</li>
+          <li><b>Abuse detection.</b> Prompts that trigger abuse detectors may be stored for investigation.</li>
+          <li><b>Feedback.</b> Anything you report to Cursor as feedback may be used.</li>
+          <li><b>Cloud Agents.</b> This feature requires Cursor to store your code.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="src">Sources: Cursor's <a href="https://cursor.com/data-use">data use page</a>, <a href="https://cursor.com/help/security-and-privacy/privacy">privacy help</a>, <a href="https://cursor.com/docs/enterprise/privacy-and-data-governance">enterprise data governance</a>, <a href="https://cursor.com/security">security page</a>, and <a href="https://cursor.com/privacy">privacy policy</a>.</p>
+  </section>
+
+<!--PROVIDERS-->
+  </div>
+
+  <section class="limits">
+    <h2>What these settings cover</h2>
+    <p>These steps show what you have asked each provider to do under its current terms. The source pages describe the provider's commitments and the exceptions that apply.</p>
+    <p>The letter asks for a collective agreement on training permissions for research conversations and agent sessions, with fair compensation and a continuing voice for scientists.</p>
+    <a class="btn-sun" href="../#sign">Add your name &rarr;</a>
+  </section>
+
+  <a class="more" href="../paper/"><b>Read the position paper</b><span>Research Router Co-Op &rarr;</span></a>
+  </main>
+</div>
+<script src="../companion.js?v=fa29e151dc" defer></script>
+</body>
+</html>

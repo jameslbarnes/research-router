@@ -1,0 +1,101 @@
+/* Letter-only layout. The settings guide and generated paper use letter.css. */
+html{scroll-behavior:auto;}
+.letter-page{--paper:#fffefa;--page-ground:#f6f5f0;--letter-ink:#26382f;
+  background:var(--page-ground);padding:48px 32px 72px;isolation:isolate;}
+.letter-layout{max-width:1072px;margin:0 auto;display:grid;position:relative;z-index:1;
+  grid-template-columns:minmax(0,816px) 224px;gap:0 32px;align-items:start;}
+/* One paper surface gives every part of the text the same place in the scene. */
+.letter-layout::before{content:"";position:absolute;inset:0 256px 0 0;z-index:-1;
+  background:var(--paper);border:1px solid #dce0d6;
+  box-shadow:0 2px 5px #24382a0a,0 18px 48px #24382a12;pointer-events:none;}
+.letter-sheet{grid-column:1;grid-row:1;min-height:1056px;
+  padding:62px 64px 46px;
+  display:flex;flex-direction:column;}
+.letter-heading{padding-bottom:25px;border-bottom:1px solid #d8ded4;margin-bottom:28px;}
+.letter-heading h1{font:400 42px/1.08 Georgia,"Times New Roman",serif;letter-spacing:-.035em;scroll-margin-top:110px;}
+.letter-heading .kind{font-size:13.5px;line-height:1.5;color:var(--dim);margin-top:12px;}
+.letter-body{font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.55;color:var(--letter-ink);}
+.letter-body > p{margin-bottom:16px;}
+.letter-body .salute{margin-bottom:18px;}
+.letter-closing{margin-top:auto;padding-top:30px;font-size:12.5px;font-family:var(--sans);
+  display:flex;align-items:center;flex-wrap:wrap;gap:16px 24px;}
+.letter-closing a{color:var(--dim);text-decoration:none;border-bottom:1px solid #c6cfc4;padding-bottom:3px;}
+.letter-closing a:hover{color:var(--green);border-color:var(--green);}
+.letter-closing .letter-sign{background:var(--green);color:var(--paper);padding:10px 16px;border:0;border-radius:3px;font-weight:600;}
+.letter-closing .letter-sign:hover{background:var(--green-2);color:var(--paper);}
+.letter-closing .letter-signatures{flex-basis:100%;border:0;font-size:11.5px;}
+.letter-sidebar{grid-column:2;grid-row:1;display:grid;gap:16px;}
+.reading-link{display:flex;flex-direction:column;text-decoration:none;padding:21px 20px;
+  background:var(--paper);border:1px solid #d8ded4;border-radius:3px;}
+.reading-link > span{display:block;font-family:var(--sans);font-size:20px;font-weight:600;line-height:1.2;color:var(--green);}
+.reading-link small{display:block;font-size:13px;line-height:1.5;color:#485f4e;margin-top:12px;margin-bottom:22px;}
+.reading-link .reading-action{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;line-height:1.4;margin-top:auto;}
+.reading-action > span{font-size:18px;line-height:1;}
+.reading-link:hover{background:#efeee7;border-color:#a5b39e;}
+.reading-link:hover .reading-action{text-decoration:underline;text-underline-offset:4px;}
+.sign-link{display:block;text-align:center;font-size:14px;font-weight:600;text-decoration:none;
+  background:var(--green);color:#fff;padding:13px 16px;border-radius:5px;}
+.sign-link:hover{background:var(--green-2);}
+.letter-page .join{grid-column:1;margin:0;padding:40px 64px 56px;border-top:1px solid #d8ded4;
+  grid-template-columns:minmax(0,1fr);scroll-margin-top:36px;}
+.letter-page .panel{background:transparent;border:0;border-radius:0;padding:0;}
+.letter-page .panel h2{font:400 32px/1.15 Georgia,"Times New Roman",serif;letter-spacing:-.025em;}
+.signatories{grid-column:1;min-width:0;padding:32px 64px;scroll-margin-top:36px;border-top:1px solid #d8ded4;}
+.signatories-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px 16px;margin-bottom:16px;}
+.signatories-heading h2{font:400 26px/1.2 Georgia,"Times New Roman",serif;color:var(--green);}
+.signatories-heading #signed-count{font-size:12px;font-weight:400;}
+.roll-toggle{margin-left:auto;font:500 12px/1.5 var(--sans);color:var(--green);background:none;border:0;border-bottom:1px solid #c6cfc4;padding:5px 0;cursor:pointer;}
+.roll-toggle:hover{border-color:var(--green);}
+.letter-page .roll{display:flex;flex-wrap:nowrap;gap:20px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:#b7c1b2 transparent;}
+.letter-page .roll li{flex:0 0 248px;min-width:0;padding:16px 0;border-top:1px solid #cbd4c8;border-radius:0;background:transparent;gap:4px;scroll-snap-align:start;}
+.letter-page .roll .who{font-family:var(--sans);font-size:17px;font-weight:600;}
+.letter-page .roll .aff{line-height:1.45;}
+.signatories.is-expanded .roll{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));overflow:visible;}
+.letter-page .field input{background:#fffefa;border-radius:4px;}
+.letter-page .btn{border-radius:4px;font-size:15px;padding:13px 20px;}
+
+@media(max-width:1050px){
+  .letter-page{padding:80px 24px 56px;}
+  .letter-layout{max-width:816px;grid-template-columns:minmax(0,1fr);gap:0;}
+  .letter-layout::before{right:0;}
+  .letter-sidebar{grid-column:1;grid-row:2;position:static;
+    grid-template-columns:1fr 1fr;gap:16px;padding:0 64px 40px;}
+  .reading-link{padding:20px;}
+  .reading-link > span{font-size:19px;}
+  .reading-link small{font-size:13px;margin-top:8px;margin-bottom:16px;}
+  .letter-sidebar .sign-link{display:none;}
+  .letter-sheet{grid-row:1;}
+}
+@media(max-width:600px){
+  .letter-page{padding:80px 12px 40px;}
+  .letter-sidebar{gap:10px;padding:0 25px 32px;}
+  .reading-link{padding:16px 14px;}
+  .reading-link > span{font-size:17px;}
+  .reading-link small{font-size:12px;line-height:1.45;margin-top:10px;}
+  .reading-link .reading-action{font-size:11.5px;}
+  .letter-sheet{min-height:0;padding:32px 25px 34px;}
+  .letter-heading{padding-bottom:22px;margin-bottom:24px;}
+  .letter-heading h1{font-size:34px;max-width:12ch;line-height:1.03;scroll-margin-top:48px;}
+  .letter-heading .kind{font-size:12px;max-width:28ch;}
+  .letter-body{font-size:16px;line-height:1.6;}
+  .letter-closing{padding-top:28px;}
+  .letter-page .join{grid-template-columns:1fr;gap:0;padding:32px 25px 40px;}
+  .signatories{padding:28px 25px;}
+  .signatories-heading{gap:8px 12px;}
+  .signatories-heading h2{font-size:24px;}
+  .roll-toggle{margin-left:0;}
+  .letter-page .roll li{flex-basis:240px;}
+}
+@media print{
+  @page{size:letter;margin:0;}
+  .letter-page{background:white;padding:0;}
+  .letter-layout{display:block;max-width:none;}
+  .letter-layout::before{display:none;}
+  .letter-sidebar,.letter-closing{display:none;}
+  .letter-sheet{width:8.5in;min-height:11in;padding:.64in .67in;
+    background:white;border:0;box-shadow:none;break-after:page;}
+  .letter-page .join,.roll-toggle{display:none;}
+  .signatories{padding:.6in .67in;}
+  .letter-page .roll{display:block;overflow:visible;}
+  .letter-page .roll li{break-inside:avoid;}
+}
