@@ -48,7 +48,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     } catch (_) { throw new Error('The signing service could not be reached. Check your connection and try again.'); }
     let data;
     try { data = await response.json(); }
-    catch (_) { throw new Error('ORCID signing is not available on this preview. Please try again when the signing service is connected.'); }
+    catch (_) { throw new Error('ORCID signing is not available yet. Please try again later.'); }
     if (!response.ok) throw new Error(data.error || 'Your request could not be completed. Please try again.');
     return data;
   }
