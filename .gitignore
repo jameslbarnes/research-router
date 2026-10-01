@@ -11,3 +11,13 @@
 !/out/PANEL.md
 !/out/PITCH.md
 !/out/dossiers
+!/services
+/services/*
+!/services/letter-signing
+/services/letter-signing/node_modules/
+/services/letter-signing/.wrangler/
+/services/letter-signing/.dev.vars*
+!/services/letter-signing/.dev.vars.example
+/services/letter-signing/.env*
+/services/letter-signing/generated-letter.json
+/services/letter-signing/public/

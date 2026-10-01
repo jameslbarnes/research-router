@@ -1,0 +1,5 @@
+# Copy to .dev.vars. Never commit the filled-in file.
+ORCID_CLIENT_ID=""
+ORCID_CLIENT_SECRET=""
+# Generate locally with: node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+TOKEN_ENCRYPTION_KEY=""

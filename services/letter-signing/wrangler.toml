@@ -1,0 +1,47 @@
+name = "bargaining-letter-signing"
+main = "worker.mjs"
+compatibility_date = "2026-09-29"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
+
+[build]
+command = "node build.mjs"
+watch_dir = ["../../site/letter/index.html", "../../site/letter/sign", "../../site/letter/sign.js", "../../site/letter/sign.css", "../../site/letter/hosting.js", "app.mjs"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[vars]
+APP_ORIGIN = "http://localhost:8766"
+ORCID_ENV = "sandbox"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bargaining-letter-signing-sandbox"
+# Local-only placeholder. Replace with a separate sandbox database ID before any remote use.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# The letter stays on GitHub Pages. Production signing serves /letter/sign/ and
+# /letter/api/* together. Credentials and the encryption key are Worker secrets.
+
+[env.production]
+name = "bargaining-letter-signing"
+account_id = "d0d2e24aeaf8c9942bdceab9a1bce14d"
+workers_dev = true
+preview_urls = false
+
+[env.production.vars]
+APP_ORIGIN = "https://bargaining-letter-signing.jameslbarnes.workers.dev"
+ORCID_ENV = "production"
+PUBLIC_LETTER_URL = "https://jameslbarnes.github.io/research-router/site/letter/studies/split-view.html"
+PUBLIC_AUDIT_URL = "https://jameslbarnes.github.io/research-router/site/letter/check/"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "bargaining-letter-signing-production"
+database_id = "f70ef178-8e11-45cf-9c65-48f7934d9ff7"
+migrations_dir = "migrations"
