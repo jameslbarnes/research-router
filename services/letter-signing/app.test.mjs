@@ -1,18 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
 import { configFromEnv, createApp, parseLetter, validOrcid } from './app.mjs';
 
 const ORCID = '0000-0002-1825-0097'; // ORCID's documented example; used only in isolated test databases.
 const canonical = readFileSync(new URL('../../site/letter/index.html', import.meta.url), 'utf8');
 const letter = parseLetter(canonical);
-const migration = readFileSync(new URL('./migrations/0001_signing.sql', import.meta.url), 'utf8');
-function setup(t, { production = false, providerError = false, evidenceError = false, tokenOverrides = {} } = {}) {
+const migration = readdirSync(new URL('./migrations/', import.meta.url)).sort().map(file => readFileSync(new URL('./migrations/' + file, import.meta.url), 'utf8')).join('\n');
+function setup(t, { production = false, providerError = false, evidenceError = false, tokenOverrides = {}, publicLetter, person = {}, activities } = {}) {
   const origin = production ? 'https://letter.example.org' : 'http://localhost:8766';
   const config = configFromEnv({ APP_ORIGIN: origin, ORCID_ENV: production ? 'production' : 'sandbox',
-    ORCID_CLIENT_ID: 'test-client', ORCID_CLIENT_SECRET: 'test-secret', TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32) });
-  const db = new DatabaseSync(':memory:'); db.exec(migration); t.after(() => db.close());
+    ORCID_CLIENT_ID: 'test-client', ORCID_CLIENT_SECRET: 'test-secret', TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32), PUBLIC_LETTER_URL: publicLetter });
+  const db = new DatabaseSync(':memory:'); db.exec('PRAGMA foreign_keys=ON'); db.exec(migration); t.after(() => db.close());
   let now = 1000000; const calls = [];
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
@@ -22,7 +23,9 @@ function setup(t, { production = false, providerError = false, evidenceError = f
         refresh_token: 'sensitive-test-refresh', scope: '/authenticate', token_type: 'bearer', ...tokenOverrides });
     }
     if (evidenceError) throw new Error('Provider timed out');
-    return Response.json({ employments: { 'affiliation-group': [{ summaries: [{ 'employment-summary': { organization: { name: 'Example Lab' } } }] }] }, works: { group: [] } });
+    if (url.endsWith('/person')) return Response.json(person);
+    assert.ok(url.endsWith('/activities'), 'Use the documented /activities endpoint');
+    return Response.json(activities || { employments: { 'affiliation-group': [{ summaries: [{ 'employment-summary': { organization: { name: 'Example Lab' } } }] }] }, works: { group: [] } });
   };
   const app = createApp({ config, db, letter, fetchImpl, now: () => now });
   const req = (path, options = {}) => app(new Request(origin + '/letter/api/' + path, options), 'test-address');
@@ -47,7 +50,7 @@ function setup(t, { production = false, providerError = false, evidenceError = f
 }
 
 test('canonical consent text excludes archived comments and binds the current wording', () => {
-  assert.equal(letter.paragraphs.length, 5);
+  assert.equal(letter.paragraphs.length, 6);
   assert.ok(!letter.text.includes('Each of us, alone'));
   assert.notEqual(parseLetter(canonical.replace('fairly compensate us', 'fairly pay us')).hash, letter.hash);
   assert.ok(validOrcid(ORCID)); assert.ok(!validOrcid('0000-0002-1825-0098'));
@@ -181,4 +184,113 @@ test('login rate limits expire', async t => {
   assert.equal((await x.post('auth/orcid/start')).status, 429);
   x.advance(11 * 60 * 1000);
   assert.equal((await x.post('auth/orcid/start')).status, 200);
+});
+
+const pagesOrigin = 'https://example.github.io';
+async function inlineLogin(x, logged) {
+  const verifier = randomBytes(32).toString('base64url'), channel = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const response = await x.post('auth/handoff', { challenge, channel }, logged);
+  assert.equal(response.status, 200);
+  const target = new URL((await response.json()).url);
+  const ticket = new URLSearchParams(target.hash.slice(1)).get('sign-ticket');
+  return { verifier, channel, challenge, ticket, target };
+}
+test('inline signing exchanges a single-use proof-bound handoff and requires consent and CSRF', async t => {
+  const x = setup(t, { publicLetter: pagesOrigin + '/letter.html' });
+  const logged = await x.login(), handoff = await inlineLogin(x, logged);
+  assert.equal(handoff.target.origin, pagesOrigin);
+  assert.equal(handoff.target.pathname, '/letter.html');
+  const options = { origin: pagesOrigin };
+  const wrong = { ...handoff, verifier: randomBytes(32).toString('base64url') };
+  assert.equal((await x.post('auth/exchange', wrong, options)).status, 401);
+  const response = await x.post('auth/exchange', handoff, options);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), pagesOrigin);
+  assert.equal(response.headers.get('access-control-allow-credentials'), null);
+  const inlineToken = (await response.json()).token;
+  assert.equal((await x.post('auth/exchange', handoff, options)).status, 401);
+  const headers = { Origin: pagesOrigin, Authorization: 'Bearer ' + inlineToken };
+  const session = await (await x.req('session', { headers })).json();
+  assert.equal(session.user.orcid, ORCID);
+  assert.equal((await x.post('signatures', x.payload, { ...options, headers })).status, 403);
+  assert.equal((await x.post('signatures', { ...x.payload, consent: false }, { ...options, headers, csrf: session.csrf })).status, 400);
+  assert.equal((await x.post('signatures', x.payload, { ...options, headers, csrf: session.csrf })).status, 201);
+  assert.equal((await x.post('auth/logout', {}, { ...options, headers, csrf: session.csrf })).status, 200);
+  assert.equal((await (await x.req('session', { headers })).json()).user, null);
+});
+test('handoffs and inline sessions reject other origins and cookie substitution', async t => {
+  const x = setup(t, { publicLetter: pagesOrigin + '/letter.html' });
+  const logged = await x.login(), handoff = await inlineLogin(x, logged);
+  assert.equal((await x.post('auth/handoff', handoff, { ...logged, origin: pagesOrigin })).status, 403);
+  const attack = await x.post('auth/exchange', handoff, { origin: 'https://attacker.example' });
+  assert.equal(attack.status, 403); assert.equal(attack.headers.get('access-control-allow-origin'), null);
+  assert.equal((await (await x.req('session', { headers: { Origin: pagesOrigin, Cookie: logged.cookie } })).json()).user, null);
+  const response = await x.post('auth/exchange', handoff, { origin: pagesOrigin });
+  const token = (await response.json()).token;
+  for (const origin of ['https://attacker.example', x.config.origin, '']) {
+    const res = await x.req('session', { headers: { Origin: origin, Authorization: 'Bearer ' + token } });
+    assert.equal((await res.json()).user, null);
+  }
+  const res = await x.req('session', { headers: { Cookie: 'letter_session=' + token } });
+  assert.equal((await res.json()).user, null);
+});
+test('expired handoffs and expired inline sessions cannot authenticate', async t => {
+  const x = setup(t, { publicLetter: pagesOrigin + '/letter.html' });
+  const logged = await x.login(); let handoff = await inlineLogin(x, logged);
+  x.advance(121000);
+  assert.equal((await x.post('auth/exchange', handoff, { origin: pagesOrigin })).status, 401);
+  handoff = await inlineLogin(x, logged);
+  const res = await x.post('auth/exchange', handoff, { origin: pagesOrigin });
+  const token = (await res.json()).token; x.advance(3600001);
+  assert.equal((await (await x.req('session', { headers: { Origin: pagesOrigin, Authorization: 'Bearer ' + token } })).json()).user, null);
+});
+test('logging out invalidates an unexchanged handoff', async t => {
+  const x = setup(t, { publicLetter: pagesOrigin + '/letter.html' });
+  const logged = await x.login(), handoff = await inlineLogin(x, logged);
+  assert.equal((await x.post('auth/logout', {}, logged)).status, 200);
+  assert.equal((await x.post('auth/exchange', handoff, { origin: pagesOrigin })).status, 401);
+});
+test('CORS preflight allows only the letter origin and supported inline endpoints', async t => {
+  const x = setup(t, { publicLetter: pagesOrigin + '/letter.html' });
+  const options = origin => ({ method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST' } });
+  const allowed = await x.req('signatures', options(pagesOrigin));
+  assert.equal(allowed.status, 204); assert.equal(allowed.headers.get('access-control-allow-origin'), pagesOrigin);
+  assert.equal(allowed.headers.get('access-control-allow-credentials'), null);
+  assert.equal((await x.req('signatures', options('https://attacker.example'))).status, 403);
+  assert.equal((await x.req('auth/handoff', options(pagesOrigin))).status, 403);
+  assert.equal((await x.req('auth/orcid/start', options(pagesOrigin))).status, 403);
+});
+test('profile prefill uses public names, current affiliations, interests and recent works, excluding email', async t => {
+  const x = setup(t, { person: { name: { 'credit-name': { value: 'Researcher Name' } },
+    emails: { email: [{ email: 'private@example.org' }] }, keywords: { keyword: [{ content: 'Ecology' }] } },
+    activities: { employments: { 'affiliation-group': [{ summaries: [
+      { 'employment-summary': { organization: { name: 'Old Lab' }, 'end-date': { year: { value: '2020' } } } },
+      { 'employment-summary': { organization: { name: 'Current Lab' }, 'role-title': 'Researcher', 'department-name': 'Biology' } },
+    ] }] }, works: { group: [
+      { 'work-summary': [{ title: { title: { value: 'Earlier work' } }, 'publication-date': { year: { value: '2020' } } }] },
+      { 'work-summary': [{ title: { title: { value: 'Recent work' } }, 'publication-date': { year: { value: '2025' } },
+        'external-ids': { 'external-id': [{ 'external-id-type': 'doi', 'external-id-relationship': 'self', 'external-id-value': '10.1234/example' }] } }] },
+    ] } } });
+  assert.equal((await x.req('profile')).status, 401);
+  const logged = await x.login();
+  const profile = await (await x.req('profile', { headers: { Cookie: logged.cookie } })).json();
+  assert.equal(profile.status, 'retrieved'); assert.equal(profile.name, 'Researcher Name');
+  assert.equal(profile.suggestedAffiliation, 'Current Lab');
+  assert.equal(profile.affiliations[0].role, 'Researcher');
+  assert.deepEqual(profile.keywords, ['Ecology']);
+  assert.equal(profile.works[0].title, 'Recent work');
+  assert.equal(profile.works[0].url, 'https://doi.org/10.1234/example');
+  assert.ok(!JSON.stringify(profile).includes('private@example.org'));
+  for (const call of x.calls.filter(call => !call.url.endsWith('/oauth/token'))) {
+    assert.equal(call.options.headers.Authorization, 'Bearer sensitive-test-token');
+    assert.equal(new URL(call.url).origin, 'https://pub.sandbox.orcid.org');
+  }
+  assert.ok(!JSON.stringify(profile).includes('sensitive-test-token'));
+});
+test('empty or unavailable public records leave manual signing available', async t => {
+  const x = setup(t, { evidenceError: true }); const logged = await x.login();
+  const profile = await (await x.req('profile', { headers: { Cookie: logged.cookie } })).json();
+  assert.equal(profile.status, 'unavailable'); assert.equal(profile.suggestedAffiliation, '');
+  assert.equal((await x.post('signatures', x.payload, logged)).status, 201);
 });

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -18,13 +19,14 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
     d1Databases: { DB: 'test-signatures' },
     outboundService: async request => {
       assert.ok(new URL(request.url).hostname.endsWith('sandbox.orcid.org'));
+      if (!request.url.endsWith('/oauth/token')) assert.equal(request.headers.get('authorization'), 'Bearer fixture-token');
       return request.url.endsWith('/oauth/token') ? Response.json({ orcid: '0000-0002-1825-0097',
         name: 'Fixture Researcher', access_token: 'fixture-token', scope: '/authenticate', token_type: 'bearer' }) : Response.json({ works: { group: [] } });
     },
   }));
   t.after(() => mf.dispose());
   const db = await mf.getD1Database('DB');
-  const sql = readFileSync(new URL('./migrations/0001_signing.sql', import.meta.url), 'utf8');
+  const sql = readdirSync(new URL('./migrations/', import.meta.url)).sort().map(file => readFileSync(new URL('./migrations/' + file, import.meta.url), 'utf8')).join('\n');
   for (const statement of sql.split(';').filter(s => s.trim())) await db.prepare(statement).run();
   const call = (path, options = {}) => mf.dispatchFetch(origin + '/letter/api/' + path, options);
   const page = await mf.dispatchFetch(origin + '/letter/sign/');
@@ -64,4 +66,21 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
   assert.equal(publicList.headers.get('access-control-allow-origin'), 'https://example.github.io');
   assert.equal(publicList.headers.get('access-control-allow-credentials'), null);
   assert.deepEqual(await publicList.json(), []);
+  const verifier = randomBytes(32).toString('base64url'), channel = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const handoff = await call('auth/handoff', { method: 'POST', headers: { Origin: origin, Cookie: sessionCookie,
+    'X-Letter-Request': '1', 'X-CSRF-Token': session.csrf }, body: JSON.stringify({ challenge, channel }) });
+  assert.equal(handoff.status, 200);
+  const returned = new URL((await handoff.json()).url);
+  assert.equal(returned.origin, 'https://example.github.io');
+  const exchange = await call('auth/exchange', { method: 'POST', headers: { Origin: returned.origin, 'X-Letter-Request': '1' },
+    body: JSON.stringify({ ticket: new URLSearchParams(returned.hash.slice(1)).get('sign-ticket'), verifier, channel }) });
+  assert.equal(exchange.status, 200);
+  const inlineToken = (await exchange.json()).token;
+  const inlineSession = await call('session', { headers: { Origin: returned.origin, Authorization: 'Bearer ' + inlineToken } });
+  assert.equal(inlineSession.headers.get('access-control-allow-origin'), returned.origin);
+  assert.equal((await inlineSession.json()).user.name, 'Fixture Researcher');
+  const profile = await call('profile', { headers: { Origin: returned.origin, Authorization: 'Bearer ' + inlineToken } });
+  assert.equal(profile.status, 200);
+  assert.equal((await profile.json()).status, 'retrieved');
 });

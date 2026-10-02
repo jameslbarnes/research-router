@@ -6,7 +6,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
 (function () {
   'use strict';
   const script = new URL(document.currentScript.src);
-  const api = new URL('api/', script);
+  let api = new URL('api/', script);
   const icon = new URL('assets/orcid-id.svg', script).href;
   const letterURL = new URL('studies/split-view.html', script).href;
   const root = document.querySelector('[data-signing]');
@@ -18,25 +18,43 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       if (target.protocol === 'https:' && !target.username && !target.password && !target.search && !target.hash) hostedSigning = target;
     } catch (_) { /* An invalid deployment setting must not redirect a visitor. */ }
   }
-  if (hostedSigning) {
+  const inline = Boolean(root && !document.body.classList.contains('signing-companion'));
+  const remoteInline = Boolean(hostedSigning && inline);
+  if (remoteInline) api = new URL('../api/', hostedSigning);
+  if (inline) {
     document.querySelectorAll('a[href]').forEach(link => {
       const target = new URL(link.href);
-      if (target.origin === location.origin && (target.pathname.endsWith('/letter/sign/') || target.hash === '#sign')) link.href = hostedSigning.href;
+      if (target.origin === location.origin && (target.pathname.endsWith('/letter/sign/') || target.hash === '#sign')) {
+        link.href = '#sign'; link.removeAttribute('target');
+      }
     });
-    if (document.body.classList.contains('signing-companion')) {
-      location.replace(hostedSigning.href);
-      return;
-    }
-    if (root) {
-      root.textContent = '';
-      const link = document.createElement('a'); link.className = 'orcid-button';
-      link.href = hostedSigning.href; link.textContent = 'Continue to signing'; root.append(link);
-      root.setAttribute('aria-busy', 'false');
-    }
+  } else if (hostedSigning && document.body.classList.contains('signing-companion')) {
+    location.replace(hosting.letterUrl + '#sign'); return;
   }
   let current = null;
+  let inlineToken = null;
+  const storageKey = 'letter-orcid-connect';
+  const proof = value => typeof value === 'string' && /^[\w-]{43}$/.test(value);
+  const base64url = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  const returnParams = new URLSearchParams(location.hash.slice(1));
+  const hasReturn = remoteInline && returnParams.has('sign-ticket');
+  if (hasReturn) history.replaceState(null, '', location.pathname + location.search + '#sign');
+  let bridge = null;
+  if (root && !inline) {
+    try {
+      const query = new URL(location.href);
+      if (proof(query.searchParams.get('connect')) && proof(query.searchParams.get('channel'))) {
+        sessionStorage.setItem(storageKey, JSON.stringify({ challenge: query.searchParams.get('connect'),
+          channel: query.searchParams.get('channel'), created: Date.now() }));
+        query.searchParams.delete('connect'); query.searchParams.delete('channel'); history.replaceState(null, '', query);
+      }
+      const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+      if (saved && proof(saved.challenge) && proof(saved.channel) && Date.now() - saved.created < 10 * 60 * 1000) bridge = saved;
+    } catch (_) { /* Regular standalone signing remains available when storage is blocked. */ }
+  }
   async function request(path, options = {}) {
     const headers = { Accept: 'application/json', ...options.headers };
+    if (inlineToken) headers.Authorization = 'Bearer ' + inlineToken;
     if (options.method === 'POST') {
       headers['X-Letter-Request'] = '1'; headers['Content-Type'] = 'application/json';
       if (current?.csrf) headers['X-CSRF-Token'] = current.csrf;
@@ -44,13 +62,51 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     let response;
     try {
       response = await fetch(new URL(path, api), { ...options, headers,
-        credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(25000) });
+        credentials: remoteInline ? 'omit' : 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(25000) });
     } catch (_) { throw new Error('The signing service could not be reached. Check your connection and try again.'); }
     let data;
     try { data = await response.json(); }
     catch (_) { throw new Error('ORCID signing is not available yet. Please try again later.'); }
     if (!response.ok) throw new Error(data.error || 'Your request could not be completed. Please try again.');
     return data;
+  }
+  async function startLogin() {
+    if (remoteInline) {
+      const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+      const channel = base64url(crypto.getRandomValues(new Uint8Array(32)));
+      const challenge = base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+      try { sessionStorage.setItem(storageKey, JSON.stringify({ verifier, channel, created: Date.now() })); }
+      catch (_) { throw new Error('Your browser could not keep this sign-in request. Allow session storage for this site and try again.'); }
+      const destination = new URL(hostedSigning); destination.search = new URLSearchParams({ connect: challenge, channel });
+      location.assign(destination.href);
+    } else {
+      const data = await request('auth/orcid/start', { method: 'POST', body: '{}' }); location.assign(data.url);
+    }
+  }
+  async function receiveSignIn() {
+    if (!hasReturn) return;
+    let pending;
+    try { pending = JSON.parse(sessionStorage.getItem(storageKey) || 'null'); sessionStorage.removeItem(storageKey); }
+    catch (_) { /* A missing browser proof must never accept a returned account. */ }
+    if (!pending || !proof(pending.verifier) || pending.channel !== returnParams.get('channel') ||
+        Date.now() - pending.created > 10 * 60 * 1000) throw new Error('Start ORCID sign-in again from this letter to connect your account.');
+    const data = await request('auth/exchange', { method: 'POST', body: JSON.stringify({ ticket: returnParams.get('sign-ticket'),
+      channel: pending.channel, verifier: pending.verifier }) });
+    if (!proof(data.token)) throw new Error('ORCID sign-in could not be completed. Please try again.');
+    inlineToken = data.token;
+  }
+  async function returnToLetter() {
+    root.innerHTML = '<p data-status role="status">Returning to the letter…</p>';
+    try {
+      const result = await request('auth/handoff', { method: 'POST', body: JSON.stringify({ challenge: bridge.challenge, channel: bridge.channel }) });
+      const destination = new URL(result.url), expected = new URL(current.letter.url);
+      if (destination.origin !== expected.origin || destination.pathname !== expected.pathname) throw new Error('Return to the letter and try signing in again.');
+      sessionStorage.removeItem(storageKey); location.replace(destination.href);
+    } catch (err) {
+      root.querySelector('[data-status]').textContent = err.message;
+      const retry = document.createElement('button'); retry.className = 'orcid-button'; retry.textContent = 'Try again';
+      retry.addEventListener('click', returnToLetter); root.append(retry);
+    }
   }
   function status(message, isError = false) {
     const el = root.querySelector('[data-status]');
@@ -72,7 +128,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     const out = document.createElement('button'); out.type = 'button'; out.className = 'sign-out'; out.textContent = 'Sign out';
     out.addEventListener('click', async () => {
       out.disabled = true;
-      try { await request('auth/logout', { method: 'POST', body: '{}' }); await load(); }
+      try { await request('auth/logout', { method: 'POST', body: '{}' }); inlineToken = null; await load(); }
       catch (err) { status(err.message, true); out.disabled = false; }
     });
     box.append(label, record, out); return box;
@@ -88,7 +144,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     button.disabled = !current?.configured;
     button.addEventListener('click', async () => {
       button.disabled = true; status('Connecting to ORCID…');
-      try { const data = await request('auth/orcid/start', { method: 'POST', body: '{}' }); location.assign(data.url); }
+      try { await startLogin(); }
       catch (err) { status(err.message, true); button.disabled = false; }
     });
     if (message) status(message, true);
@@ -99,10 +155,11 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   }
   function showForm() {
     root.innerHTML = '<p>Choose how your name will appear on the letter.</p>' +
-      '<details class="sign-letter"><summary>Read the letter you are signing</summary><div class="sign-letter-body"></div></details>' +
+      (inline ? '' : '<details class="sign-letter"><summary>Read the letter you are signing</summary><div class="sign-letter-body"></div></details>') +
+      '<details class="sign-profile"><summary>Your public ORCID record</summary><div data-profile><p class="sign-small">Loading your research details…</p></div></details>' +
       '<form class="sign-fields">' +
       '<div class="sign-field"><label for="sign-name">Name</label><input id="sign-name" name="name" autocomplete="name" maxlength="160" required></div>' +
-      '<div class="sign-field"><label for="sign-affiliation">Affiliation or field</label><input id="sign-affiliation" name="affiliation" autocomplete="organization" maxlength="240"></div>' +
+      '<div class="sign-field"><label for="sign-affiliation">Affiliation or field</label><input id="sign-affiliation" name="affiliation" autocomplete="organization" maxlength="240"><p data-aff-source class="sign-small"></p></div>' +
       '<div class="sign-field"><label for="sign-email">Email for organising updates (optional)</label><input id="sign-email" name="email" type="email" autocomplete="email" maxlength="254"></div>' +
       '<label class="sign-check"><input name="updates" type="checkbox"><span>Email me about organising collective bargaining.</span></label>' +
       '<p class="sign-small">Your name, affiliation and ORCID iD will be public once approved. Your email will stay private.</p>' +
@@ -111,9 +168,13 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<p data-status class="sign-status" role="status" aria-live="polite"></p>';
     root.prepend(identity()); environment();
     const body = root.querySelector('.sign-letter-body');
-    const title = document.createElement('h2'); title.textContent = current.letter.title; body.append(title);
-    current.letter.paragraphs.forEach(text => { const p = document.createElement('p'); p.textContent = text; body.append(p); });
+    if (body) {
+      const title = document.createElement('h2'); title.textContent = current.letter.title; body.append(title);
+      current.letter.paragraphs.forEach(text => { const p = document.createElement('p'); p.textContent = text; body.append(p); });
+    }
     const form = root.querySelector('form'); form.elements.name.value = current.user.name || '';
+    for (const field of ['name', 'affiliation']) form.elements[field].addEventListener('input', () => { form.elements[field].dataset.edited = 'true'; });
+    fillProfile(form);
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (form.elements.updates.checked && !form.elements.email.value.trim()) {
@@ -130,6 +191,46 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         current.signature = result.signature; showResult();
       } catch (err) { status(err.message, true); button.disabled = false; }
     });
+  }
+  async function fillProfile(form) {
+    const panel = root.querySelector('[data-profile]');
+    try {
+      const profile = await request('profile');
+      if (!root.contains(form)) return;
+      if (profile.name && !form.elements.name.dataset.edited) form.elements.name.value = profile.name;
+      if (profile.suggestedAffiliation && !form.elements.affiliation.dataset.edited) {
+        form.elements.affiliation.value = profile.suggestedAffiliation;
+        root.querySelector('[data-aff-source]').textContent = 'From your public ORCID record. You can edit this.';
+      }
+      panel.textContent = '';
+      const paragraph = (text, className = 'sign-small') => { const p = document.createElement('p'); p.className = className; p.textContent = text; panel.append(p); };
+      if (profile.status === 'unavailable') { paragraph('Your public ORCID details could not be loaded. You can enter your affiliation below.'); return; }
+      if (!profile.affiliations.length && !profile.keywords.length && !profile.works.length) {
+        paragraph('Your public ORCID record has no affiliation or research details to show yet. You can enter your affiliation below.'); return;
+      }
+      paragraph('These details come from your public ORCID record. Only the name and affiliation you submit will appear beside your ORCID iD on the letter.');
+      profile.affiliations.slice(0, 4).forEach(affiliation => {
+        const row = document.createElement('div'); row.className = 'sign-profile-affiliation';
+        const name = document.createElement('p'); name.textContent = affiliation.organization; row.append(name);
+        const detail = [affiliation.role, affiliation.department].filter(Boolean).join(', ');
+        if (detail) { const p = document.createElement('p'); p.className = 'sign-small'; p.textContent = detail; row.append(p); }
+        const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'sign-aff-choice'; choose.textContent = 'Use this affiliation';
+        choose.addEventListener('click', () => { form.elements.affiliation.value = affiliation.organization; form.elements.affiliation.dataset.edited = 'true';
+          root.querySelector('[data-aff-source]').textContent = 'From your public ORCID record. You can edit this.'; });
+        row.append(choose); panel.append(row);
+      });
+      if (profile.keywords.length) paragraph('Research interests: ' + profile.keywords.join(', '));
+      if (profile.works.length) {
+        paragraph('Recent works listed on ORCID');
+        const list = document.createElement('ul'); list.className = 'sign-profile-works';
+        profile.works.forEach(work => { const item = document.createElement('li');
+          const title = document.createElement(work.url?.startsWith('https://doi.org/') ? 'a' : 'span');
+          title.textContent = work.title; if (title.tagName === 'A') { title.href = work.url; title.target = '_blank'; title.rel = 'noopener noreferrer'; }
+          item.append(title); if (work.year) item.append(document.createTextNode(' (' + work.year + ')')); list.append(item); });
+        panel.append(list);
+      }
+      if (profile.status === 'partial') paragraph('Some ORCID details could not be loaded. You can still complete the form.');
+    } catch (_) { if (root.contains(form)) panel.textContent = 'Your public ORCID details could not be loaded. You can enter your affiliation below.'; }
   }
   function showResult() {
     root.innerHTML = '<div class="sign-result"><h2></h2><p class="sign-public-name"></p><p class="sign-public-affiliation sign-small"></p><p class="sign-result-note"></p>' +
@@ -157,7 +258,24 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         unavailable: 'ORCID signing is not available yet. Please try again later.' };
       const message = errors[query.searchParams.get('auth')];
       if (query.searchParams.has('auth')) { query.searchParams.delete('auth'); history.replaceState(null, '', query); }
-      if (!current.user) showLogin(message); else if (current.signature) showResult(); else showForm();
+      if (inline) {
+        const normalise = text => text.replace(/\s+/g, ' ').trim();
+        const title = document.querySelector('#letter-title, .study-title');
+        const paragraphs = [...document.querySelectorAll('.letter-body > p, .letter-copy > p')].map(p => normalise(p.textContent));
+        if (!title || normalise(title.innerText) !== current.letter.title || JSON.stringify(paragraphs) !== JSON.stringify(current.letter.paragraphs)) {
+          root.innerHTML = '<p role="status">The letter has been updated. Reload this page to read the current version before signing.</p><button type="button" class="orcid-button">Reload the letter</button>';
+          root.querySelector('button').addEventListener('click', () => location.reload());
+          return;
+        }
+      }
+      if (bridge && current.user) { await returnToLetter(); return; }
+      if (!current.user) {
+        showLogin(message);
+        if (bridge && !message && current.configured) {
+          status('Connecting to ORCID…'); root.querySelector('.orcid-button').disabled = true;
+          try { await startLogin(); } catch (err) { showLogin(err.message); }
+        }
+      } else if (current.signature) showResult(); else showForm();
     } catch (err) { current = null; showLogin(err.message); }
     finally { root.setAttribute('aria-busy', 'false'); }
   }
@@ -187,5 +305,8 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     } catch (_) { /* Keep the existing public list when the service is unavailable. */ }
   }
   loadSignatories();
-  if (root && !hostedSigning) load();
+  if (root) {
+    receiveSignIn().then(load).catch(async err => { await load(); if (!current?.user) showLogin(err.message); })
+      .finally(() => { if (hasReturn) document.getElementById('sign')?.scrollIntoView({ block: 'start' }); });
+  }
 })();
