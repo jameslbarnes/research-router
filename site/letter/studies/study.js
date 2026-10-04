@@ -3,7 +3,7 @@
   if (still) document.body.classList.add('still');
   else {
     const script = document.createElement('script');
-    script.src = '../research-film.js?v=b45cd866e7';
+    script.src = '../research-film.js?v=a39adc59b8';
     document.body.appendChild(script);
   }
   const refs = [...document.querySelectorAll('[data-note]')];
