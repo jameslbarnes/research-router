@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
+import { fixtureActivities, fixturePapers, fixtureCitationAuthors, fixtureBibliography } from './invitations.fixtures.mjs';
 
 test('Cloudflare runtime completes OAuth and stores a private, idempotent signature in D1', async t => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('./worker.mjs', import.meta.url))],
@@ -18,10 +19,27 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
     assets: { directory: fileURLToPath(new URL('./public', import.meta.url)), binding: 'ASSETS', run_worker_first: true, routerConfig: { has_user_worker: true } },
     d1Databases: { DB: 'test-signatures' },
     outboundService: async request => {
+      if (new URL(request.url).hostname === 'sparql.dblp.org') {
+        assert.equal(request.headers.get('authorization'), null);
+        return Response.json({ results: { bindings: fixtureBibliography.results.bindings.map(row =>
+          ({ ...row, personName: { value: 'Fixture Researcher' } })) } });
+      }
+      if (new URL(request.url).hostname === 'api.openalex.org') {
+        assert.equal(request.headers.get('authorization'), null);
+        return Response.json({ meta: { count: 2 }, results: [...fixtureCitationAuthors.results, {
+          id: 'https://openalex.org/A999', orcid: 'https://orcid.org/0000-0002-1825-0097',
+          display_name: 'Fixture Researcher', cited_by_count: 42,
+        }] });
+      }
+      if (new URL(request.url).hostname === 'api.crossref.org') {
+        assert.equal(request.headers.get('authorization'), null);
+        const paper = fixturePapers[decodeURIComponent(new URL(request.url).pathname.split('/works/')[1])];
+        return paper ? Response.json(paper) : new Response('Not found', { status: 404 });
+      }
       assert.ok(new URL(request.url).hostname.endsWith('sandbox.orcid.org'));
       if (!request.url.endsWith('/oauth/token')) assert.equal(request.headers.get('authorization'), 'Bearer fixture-token');
       return request.url.endsWith('/oauth/token') ? Response.json({ orcid: '0000-0002-1825-0097',
-        name: 'Fixture Researcher', access_token: 'fixture-token', scope: '/authenticate', token_type: 'bearer' }) : Response.json({ works: { group: [] } });
+        name: 'Fixture Researcher', access_token: 'fixture-token', scope: '/authenticate', token_type: 'bearer' }) : Response.json(fixtureActivities);
     },
   }));
   t.after(() => mf.dispose());
@@ -35,7 +53,7 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
   const html = await page.text();
   assert.ok(html.includes('href="' + publicLetter + '"'));
   assert.ok(html.includes('href="https://example.github.io/research-router/site/letter/check/"'));
-  for (const file of ['sign.js', 'sign.css', 'hosting.js', 'companion.css', 'assets/orcid-id.svg', 'assets/spatial-threads/journey-poster-desktop.jpg']) {
+  for (const file of ['sign.js', 'sign.css', 'invitations.js', 'hosting.js', 'companion.css', 'assets/orcid-id.svg', 'assets/spatial-threads/journey-poster-desktop.jpg']) {
     assert.equal((await mf.dispatchFetch(origin + '/letter/' + file)).status, 200, file);
   }
   assert.equal((await mf.dispatchFetch(origin + '/.dev.vars')).status, 404);
@@ -54,6 +72,11 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
   const session = await sessionResponse.json();
   assert.equal(session.user.name, 'Fixture Researcher');
   assert.equal(session.letter.url, publicLetter);
+  const warm = await call('coauthors', { method: 'POST', headers: { Origin: origin, 'X-Letter-Request': '1',
+    'Content-Type': 'application/json', 'X-CSRF-Token': session.csrf, Cookie: sessionCookie }, body: '{}' });
+  assert.equal(warm.status, 200);
+  assert.equal((await warm.json()).citationLookup.status, 'pending');
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM signatures').first()).n, 0);
   const submit = () => call('signatures', { method: 'POST', headers: { Origin: origin, 'X-Letter-Request': '1',
     'Content-Type': 'application/json', 'X-CSRF-Token': session.csrf, Cookie: sessionCookie }, body: JSON.stringify({
       name: 'Fixture Researcher', affiliation: 'Test only', email: '', updates: false, consent: true, letterHash: session.letter.hash,
@@ -83,4 +106,34 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
   const profile = await call('profile', { headers: { Origin: returned.origin, Authorization: 'Bearer ' + inlineToken } });
   assert.equal(profile.status, 200);
   assert.equal((await profile.json()).status, 'retrieved');
+  const inlineInfo = await (await call('session', { headers: { Origin: returned.origin, Authorization: 'Bearer ' + inlineToken } })).json();
+  const inviteHeaders = { Origin: returned.origin, Authorization: 'Bearer ' + inlineToken,
+    'X-Letter-Request': '1', 'X-CSRF-Token': inlineInfo.csrf, 'Content-Type': 'application/json' };
+  const discovery = await call('coauthors', { method: 'POST', headers: inviteHeaders, body: '{}' });
+  assert.equal(discovery.status, 200);
+  assert.equal((await discovery.json()).citationLookup.status, 'pending');
+  const enriched = await call('coauthors/citations', { method: 'POST', headers: inviteHeaders, body: '{}' });
+  assert.equal(enriched.status, 200);
+  assert.equal(enriched.headers.get('access-control-allow-origin'), returned.origin);
+  const network = await enriched.json();
+  assert.equal(network.candidates.length, 3); assert.equal(network.candidates[0].citations.count, 1250);
+  assert.equal(network.scannedWorks, 15); assert.equal(network.source.name, 'DBLP');
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM researchers').first()).n, 3);
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM discovery_locks').first()).n, 0);
+  const prepared = await call('invitations', { method: 'POST', headers: inviteHeaders, body: JSON.stringify({ name: 'Test Collaborator' }) });
+  assert.equal(prepared.status, 200); assert.equal(prepared.headers.get('access-control-allow-origin'), returned.origin);
+  const invitation = (await prepared.json()).invitation;
+  assert.equal(new URL(invitation.url).searchParams.get('via'), invitation.id);
+  const copied = await call('invitations/action', { method: 'POST', headers: inviteHeaders, body: JSON.stringify({ id: invitation.id, action: 'copied' }) });
+  assert.equal(copied.status, 200);
+  assert.equal((await db.prepare('SELECT last_action FROM invitations').first()).last_action, 'copied');
+  // Isolated D1 fixture for the public, current-version citation cache.
+  await db.prepare(`INSERT INTO identities SELECT 'production:'||orcid, orcid, 'production', name, '', authenticated_at FROM identities`).run();
+  await db.prepare(`INSERT INTO signatures SELECT 'production:0000-0002-1825-0097', letter_hash, letter_text, name,
+    affiliation, email, updates, 'approved', evidence, submitted_at, reviewed_at FROM signatures`).run();
+  const ranked = await (await call('signatures')).json();
+  assert.equal(ranked.length, 1); assert.equal(ranked[0].citations.count, 42);
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM signer_citations').first()).n, 1);
+  await db.prepare("UPDATE signatures SET status='withdrawn' WHERE subject LIKE 'production:%'").run();
+  assert.deepEqual(await (await call('signatures')).json(), []);
 });

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev --ip 127.0.0.1 --port 8787",
     "preview": "node preview.mjs",
+    "preview:invitations": "node invitations.preview.mjs",
     "build": "node build.mjs",
     "db:local": "wrangler d1 migrations apply DB --local",
     "test": "node --test app.test.mjs",

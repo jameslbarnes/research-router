@@ -7,7 +7,7 @@ preview_urls = false
 
 [build]
 command = "node build.mjs"
-watch_dir = ["../../site/letter/index.html", "../../site/letter/sign", "../../site/letter/sign.js", "../../site/letter/sign.css", "../../site/letter/hosting.js", "app.mjs"]
+watch_dir = ["../../site/letter/index.html", "../../site/letter/sign", "../../site/letter/sign.js", "../../site/letter/sign.css", "../../site/letter/invitations.js", "../../site/letter/hosting.js", "app.mjs", "invitations.mjs", "citations.mjs", "signatories.mjs"]
 
 [assets]
 directory = "./public"

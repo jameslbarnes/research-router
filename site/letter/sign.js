@@ -10,6 +10,15 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   const icon = new URL('assets/orcid-id.svg', script).href;
   const letterURL = new URL('studies/split-view.html', script).href;
   const root = document.querySelector('[data-signing]');
+  const referralKey = 'letter-invitation';
+  let referral = '';
+  try {
+    const arrival = new URL(location.href), via = arrival.searchParams.get('via');
+    if (/^[\w-]{22}$/.test(via || '')) sessionStorage.setItem(referralKey, JSON.stringify({ id: via, created: Date.now() }));
+    const saved = JSON.parse(sessionStorage.getItem(referralKey) || 'null');
+    if (saved && /^[\w-]{22}$/.test(saved.id) && Date.now() - saved.created < 7 * 24 * 60 * 60 * 1000) referral = saved.id;
+    if (via) { arrival.searchParams.delete('via'); history.replaceState(null, '', arrival); }
+  } catch (_) { /* Reading and signing remain available without referral storage. */ }
   const hosting = window.LETTER_HOSTING;
   let hostedSigning = null;
   if (hosting?.signingUrl && location.origin === hosting.siteOrigin) {
@@ -32,6 +41,16 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     location.replace(hosting.letterUrl + '#sign'); return;
   }
   let current = null;
+  let coauthorLookup = null, lookupOrcid = null;
+  function resetLookup() { coauthorLookup?.cancel(); coauthorLookup = null; lookupOrcid = null; }
+  function startLookup() {
+    if (!window.LetterInvitations || current.signature?.status === 'withdrawn') return;
+    if (lookupOrcid !== current.user.orcid) {
+      resetLookup(); lookupOrcid = current.user.orcid;
+      coauthorLookup = window.LetterInvitations.createLookup(request);
+    }
+    coauthorLookup.start();
+  }
   let inlineToken = null;
   const storageKey = 'letter-orcid-connect';
   const proof = value => typeof value === 'string' && /^[\w-]{43}$/.test(value);
@@ -62,7 +81,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     let response;
     try {
       response = await fetch(new URL(path, api), { ...options, headers,
-        credentials: remoteInline ? 'omit' : 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(25000) });
+        credentials: remoteInline ? 'omit' : 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(path === 'coauthors' ? 45000 : 25000) });
     } catch (_) { throw new Error('The signing service could not be reached. Check your connection and try again.'); }
     let data;
     try { data = await response.json(); }
@@ -127,6 +146,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     link.target = '_blank'; link.rel = 'noopener noreferrer'; record.append(image, link);
     const out = document.createElement('button'); out.type = 'button'; out.className = 'sign-out'; out.textContent = 'Sign out';
     out.addEventListener('click', async () => {
+      resetLookup();
       out.disabled = true;
       try { await request('auth/logout', { method: 'POST', body: '{}' }); inlineToken = null; await load(); }
       catch (err) { status(err.message, true); out.disabled = false; }
@@ -134,7 +154,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     box.append(label, record, out); return box;
   }
   function showLogin(message) {
-    root.innerHTML = '<p>Sign in with ORCID to connect your name to your research record. You’ll review your details before submitting your signature.</p>' +
+    root.innerHTML = '<p>Sign in with ORCID to connect your name to your research record. You’ll review your details before submitting your signature. We’ll look up your public coauthors while you review.</p>' +
       '<button class="orcid-button" type="button"><img alt="" width="24" height="24"><span>Continue with ORCID</span></button>' +
       '<p class="sign-help">ORCID is a free researcher identifier. You can create an account during sign-in.</p>' +
       '<p class="sign-small">We’ll review your research identity before publishing your signature. Your name, affiliation and ORCID iD will appear on the letter once approved.</p>' +
@@ -163,6 +183,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<div class="sign-field"><label for="sign-email">Email for organising updates (optional)</label><input id="sign-email" name="email" type="email" autocomplete="email" maxlength="254"></div>' +
       '<label class="sign-check"><input name="updates" type="checkbox"><span>Email me about organising collective bargaining.</span></label>' +
       '<p class="sign-small">Your name, affiliation and ORCID iD will be public once approved. Your email will stay private.</p>' +
+      (referral ? '<p class="sign-small">When you sign, we’ll record the invitation link that brought you here.</p>' : '') +
       '<label class="sign-check"><input name="consent" type="checkbox" required><span>I agree to the letter and want my name added.</span></label>' +
       '<button class="sign-submit" type="submit">Submit my signature</button></form>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p>';
@@ -186,9 +207,11 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         const result = await request('signatures', { method: 'POST', body: JSON.stringify({
           name: form.elements.name.value.trim(), affiliation: form.elements.affiliation.value.trim(),
           email: form.elements.email.value.trim(), updates: form.elements.updates.checked,
-          consent: form.elements.consent.checked, letterHash: current.letter.hash
+          consent: form.elements.consent.checked, letterHash: current.letter.hash, via: referral
         }) });
-        current.signature = result.signature; showResult();
+        current.signature = result.signature; referral = '';
+        try { sessionStorage.removeItem(referralKey); } catch (_) { /* Optional attribution. */ }
+        showResult();
       } catch (err) { status(err.message, true); button.disabled = false; }
     });
   }
@@ -234,7 +257,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   }
   function showResult() {
     root.innerHTML = '<div class="sign-result"><h2></h2><p class="sign-public-name"></p><p class="sign-public-affiliation sign-small"></p><p class="sign-result-note"></p>' +
-      '<div class="sign-share"><p>Invite a collaborator to read the letter.</p><button type="button">Copy letter link</button></div></div>' +
+      '<div class="sign-share" data-invitations></div></div>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p>';
     root.prepend(identity()); environment();
     const approved = current.signature.status === 'approved', withdrawn = current.signature.status === 'withdrawn';
@@ -242,7 +265,13 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     root.querySelector('.sign-public-name').textContent = current.signature.name;
     root.querySelector('.sign-public-affiliation').textContent = current.signature.affiliation;
     root.querySelector('.sign-result-note').textContent = withdrawn ? 'Your signature is no longer included in the public list.' : approved ? 'Thank you for signing the letter.' : 'Your ORCID account is connected. We’ll check your research identity before adding your name to the public list.';
-    root.querySelector('.sign-share button').addEventListener('click', async () => {
+    const invitations = root.querySelector('[data-invitations]');
+    if (withdrawn) { invitations.remove(); return; }
+    if (window.LetterInvitations) {
+      window.LetterInvitations.mount(invitations, { request, letter: current.letter, lookup: coauthorLookup || undefined }); return;
+    }
+    invitations.innerHTML = '<p>Invite a collaborator to read the letter.</p><button type="button">Copy letter link</button>';
+    invitations.querySelector('button').addEventListener('click', async () => {
       const shareURL = current.letter.url || letterURL;
       try { await navigator.clipboard.writeText(shareURL); status('Letter link copied.'); }
       catch (_) { status('Copy this address to share the letter: ' + shareURL); }
@@ -270,13 +299,14 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       }
       if (bridge && current.user) { await returnToLetter(); return; }
       if (!current.user) {
+        resetLookup();
         showLogin(message);
         if (bridge && !message && current.configured) {
           status('Connecting to ORCID…'); root.querySelector('.orcid-button').disabled = true;
           try { await startLogin(); } catch (err) { showLogin(err.message); }
         }
-      } else if (current.signature) showResult(); else showForm();
-    } catch (err) { current = null; showLogin(err.message); }
+      } else { startLookup(); if (current.signature) showResult(); else showForm(); }
+    } catch (err) { resetLookup(); current = null; showLogin(err.message); }
     finally { root.setAttribute('aria-busy', 'false'); }
   }
   async function loadSignatories() {
@@ -290,18 +320,43 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         (hostedSigning ? fetch(new URL('../api/signatures', hostedSigning), { credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(12000) })
           .then(r => { if (!r.ok) throw new Error(); return r.json(); }) : request('signatures')).catch(() => [])
       ]);
-      const list = existing.concat(approved); if (!list.length) return;
+      const list = [];
+      const normalise = value => String(value || '').normalize('NFKC').trim().toLowerCase();
+      for (const signer of existing.concat(approved)) {
+        const duplicate = list.findIndex(s => (s.orcid && signer.orcid && s.orcid === signer.orcid) ||
+          ((!s.orcid || !signer.orcid) && normalise(s.name) === normalise(signer.name) && normalise(s.affiliation) === normalise(signer.affiliation)));
+        if (duplicate < 0) list.push(signer); else list[duplicate] = signer;
+      }
+      const citationCount = s => Number.isSafeInteger(s.citations?.count) && s.citations.count >= 0 &&
+        /^https:\/\/openalex\.org\/A\d+$/.test(s.citations.url) ? s.citations.count : null;
+      list.sort((a, b) => (citationCount(b) ?? -1) - (citationCount(a) ?? -1));
+      if (!list.length) return;
       roll.textContent = '';
       list.forEach(s => {
         const li = document.createElement(study ? 'div' : 'li'), name = document.createElement(study ? 'p' : 'span');
         name.className = study ? 'signature-name' : 'who'; name.textContent = s.name; li.append(name);
         if (s.affiliation) { const aff = document.createElement(study ? 'p' : 'span'); aff.className = study ? 'signature-aff' : 'aff'; aff.textContent = s.affiliation; li.append(aff); }
+        if (citationCount(s) !== null) {
+          const citations = document.createElement('p'), source = document.createElement('a');
+          citations.className = 'signature-citations'; source.href = s.citations.url;
+          source.target = '_blank'; source.rel = 'noopener noreferrer';
+          source.textContent = citationCount(s).toLocaleString('en-US') + ' citations · OpenAlex';
+          if (Number.isFinite(s.citations.retrievedAt)) source.title = 'Checked ' + new Date(s.citations.retrievedAt).toLocaleDateString('en-US');
+          citations.append(source); li.append(citations);
+        }
         if (/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(s.orcid || '')) {
           const link = document.createElement('a'); link.href = 'https://orcid.org/' + s.orcid; link.textContent = link.href; li.append(link);
         }
         roll.append(li);
       });
       count.textContent = list.length + (list.length === 1 ? ' signature' : ' signatures');
+      const context = document.querySelector('[data-signatory-context]');
+      if (context && list.length >= 3) {
+        const featured = list.filter(s => citationCount(s) !== null).slice(0, 2);
+        context.textContent = featured.length === 2 ? 'An open letter from ' + featured[0].name + ', ' + featured[1].name +
+          ' and ' + (list.length - 2).toLocaleString('en-US') + (list.length === 3 ? ' other scientist' : ' other scientists') + ' to the frontier labs' :
+          'An open letter from ' + list.length.toLocaleString('en-US') + ' scientists to the frontier labs';
+      }
     } catch (_) { /* Keep the existing public list when the service is unavailable. */ }
   }
   loadSignatories();

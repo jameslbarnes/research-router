@@ -1,4 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto';
+import { createInvitations } from './invitations.mjs';
+import { createSignatories } from './signatories.mjs';
 
 const API = '/letter/api';
 const SIGN_PAGE = '/letter/sign/';
@@ -85,8 +87,9 @@ function publicReadHeaders(encrypted, key) {
 }
 
 async function providerJSON(fetchImpl, url, options = {}) {
-  const response = await fetchImpl(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(12000) });
-  if (!response.ok) throw new Error('Provider request failed.');
+  const { timeoutMs = 12000, ...fetchOptions } = options;
+  const response = await fetchImpl(url, { ...fetchOptions, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+  if (!response.ok) { await response.body?.cancel(); const err = new Error('Provider request failed.'); err.status = response.status; throw err; }
   const reader = response.body.getReader();
   const chunks = [];
   let length = 0;
@@ -145,7 +148,8 @@ export async function researchProfile(config, orcid, fetchImpl = fetch, headers 
 
 export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.now }) {
   const publicOrigin = new URL(config.publicLetterUrl).origin;
-  const inlinePaths = new Set(['session', 'profile', 'auth/exchange', 'auth/logout', 'signatures'].map(path => `${API}/${path}`));
+  const inlinePaths = new Set(['session', 'profile', 'auth/exchange', 'auth/logout', 'signatures',
+    'coauthors', 'coauthors/citations', 'invitations', 'invitations/action'].map(path => `${API}/${path}`));
   const sessionName = config.secure ? '__Host-letter_session' : 'letter_session';
   const flowName = config.secure ? '__Host-letter_oauth' : 'letter_oauth';
   const cookie = (name, value, seconds) => `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${config.secure ? '; Secure' : ''}`;
@@ -175,6 +179,9 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     const identity = await db.prepare('SELECT token_encrypted FROM identities WHERE subject=?').get(subject);
     return publicReadHeaders(identity?.token_encrypted, config.encryptionKey);
   };
+  const invitations = createInvitations({ config, db, letter, now, fetchImpl, providerJSON, validOrcid,
+    loadEvidence: async user => researchEvidence(config, user.orcid, fetchImpl, now(), await profileHeaders(user.subject)) });
+  const signatories = createSignatories({ db, letter, now, fetchImpl, providerJSON });
   async function limit(bucket, max = 60) {
     const key = hash(bucket);
     const time = now();
@@ -205,9 +212,14 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
       if (!await limit(`profile:${user.subject}`, 12)) return error(429, 'Your ORCID details have been requested too often. Please try again in ten minutes.');
       return json(await researchProfile(config, user.orcid, fetchImpl, await profileHeaders(user.subject)));
     }
+    if (request.method === 'GET' && path === `${API}/invitations`) {
+      const user = await session(request);
+      if (!user) return error(401, 'Sign in with ORCID to see your invitations.');
+      if (!['pending_review', 'approved'].includes((await signature(user.subject))?.status)) return error(403, 'Submit your signature before preparing invitations.');
+      return json(await invitations.list(user.subject));
+    }
     if (request.method === 'GET' && path === `${API}/signatures`) {
-      const response = json(await db.prepare(`SELECT signatures.name, affiliation, orcid FROM signatures JOIN identities USING(subject)
-        WHERE status='approved' AND environment='production' AND letter_hash=? ORDER BY submitted_at`).all(letter.hash));
+      const response = json(await signatories());
       // Only approved public records are readable from the separate letter site.
       response.headers.set('Access-Control-Allow-Origin', new URL(config.publicLetterUrl).origin);
       return response;
@@ -287,6 +299,30 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     const user = await session(request);
     if (!user) return error(401, 'Your sign-in has expired. Sign in with ORCID again.');
     if (!same(request.headers.get('x-csrf-token'), user.csrf)) return error(403, 'Refresh this page and try again.');
+    if ([`${API}/coauthors`, `${API}/coauthors/citations`, `${API}/invitations`, `${API}/invitations/action`].includes(path)) {
+      const discovering = path === `${API}/coauthors` || path === `${API}/coauthors/citations`;
+      const signed = await signature(user.subject);
+      if (signed?.status === 'withdrawn') return error(403, 'Your signature has been withdrawn. Invitation tools are unavailable.');
+      if (!discovering && !['pending_review', 'approved'].includes(signed?.status)) return error(403, 'Submit your signature before preparing invitations.');
+      if (!await limit(`invite:${user.subject}`, 80)) return error(429, 'Too many invitation requests. Please try again in ten minutes.');
+      if (!request.headers.get('content-type')?.startsWith('application/json')) return error(415, 'Refresh this page and try again.');
+      let data;
+      try { const body = await request.text(); if (Buffer.byteLength(body) > 2048) throw new Error();
+        data = JSON.parse(body); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(); }
+      catch { return error(400, 'The invitation could not be read. Refresh this page and try again.'); }
+      if (discovering) {
+        const citations = path === `${API}/coauthors/citations`;
+        if (!await limit(`${citations ? 'citations' : 'coauthors'}:${user.subject}`, 6)) return error(429, 'Your coauthors have been requested too often. Try again in ten minutes.');
+        const result = await (citations ? invitations.enrich(user) : invitations.discover(user));
+        return result.error ? error(result.status, result.error) : json(result);
+      }
+      if (path === `${API}/invitations/action`) {
+        if (!await invitations.action(user.subject, data)) return error(404, 'That invitation was not found. Prepare it again from this page.');
+        return json({ ok: true });
+      }
+      const result = await invitations.prepare(user.subject, data);
+      return result.error ? error(result.status, result.error) : json(result);
+    }
     if (path === `${API}/auth/handoff`) {
       if (requestOrigin !== config.origin || request.headers.has('authorization')) return error(403, 'Complete ORCID sign-in in this window.');
       let data;
@@ -332,10 +368,14 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     const evidence = await researchEvidence(config, user.orcid, fetchImpl, now(), await profileHeaders(user.subject));
     // The authenticated session supplies the identity. Client-supplied ORCID values are ignored.
     // A unique key makes a retried or concurrent submission idempotent.
-    await db.prepare(`INSERT OR IGNORE INTO signatures
+    const inserted = await db.prepare(`INSERT OR IGNORE INTO signatures
       (subject, letter_hash, letter_text, name, affiliation, email, updates, status, evidence, submitted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?)`)
-      .run(user.subject, letter.hash, letter.text, name, affiliation, email, Number(data.updates), JSON.stringify(evidence), now());
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?) RETURNING subject`)
+      .get(user.subject, letter.hash, letter.text, name, affiliation, email, Number(data.updates), JSON.stringify(evidence), now());
+    if (inserted) {
+      // An optional referral must never make an otherwise successful signature fail.
+      try { await invitations.attribute(user.subject, data.via); } catch { /* The signature is safely stored. */ }
+    }
     return json({ signature: await signature(user.subject) }, 201);
   }
   return async (request, clientAddress = 'local') => {
