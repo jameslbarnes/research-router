@@ -1,0 +1,15 @@
+name = "bargaining-media"
+main = "worker.mjs"
+account_id = "d0d2e24aeaf8c9942bdceab9a1bce14d"
+compatibility_date = "2026-10-04"
+workers_dev = true
+preview_urls = false
+
+[build]
+command = "node build.mjs"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/introduction.mp4"]
+not_found_handling = "none"

@@ -1,15 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Bargaining For Our Minds</title>
-<script>
-const letterDomain = ['bargainingforourminds.org', 'www.bargainingforourminds.org'].includes(location.hostname);
-location.replace((letterDomain ? 'science/' : 'site/') + location.search + location.hash);
-</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Collective bargaining for the people whose work advances AI. Watch the introduction and read the scientists’ open letter to the frontier labs.">
+  <meta name="theme-color" content="#fbfaf7">
+  <title>Bargaining For Our Minds</title>
+  <link rel="canonical" href="https://bargainingforourminds.org/">
+  <link rel="stylesheet" href="site/home/home.css?v=1">
 </head>
 <body>
-<p><a href="science/">Read Bargaining For Our Minds</a></p>
-<p><a href="site/">The Research Router: hypothesis and trial</a></p>
+  <main class="home">
+    <header class="home-heading">
+      <div class="heading-lead">
+        <h1><span>Bargaining</span><span>For Our</span><span>Minds</span></h1>
+        <p class="home-description">Collective bargaining for the people whose work advances AI.</p>
+      </div>
+      <nav class="home-actions" aria-label="Take part">
+        <a class="primary-action" href="science/"><span>Read and sign the scientists’ letter</span><span aria-hidden="true">↗</span></a>
+        <a href="science/check/"><span>Learn how to disable sharing</span><span aria-hidden="true">↗</span></a>
+        <a href="science/paper/"><span>Read the position paper</span><span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+    <section class="home-film" aria-labelledby="film-heading">
+      <div class="film-caption">
+        <h2 id="film-heading">Watch the introduction</h2>
+        <span>30 seconds</span>
+      </div>
+      <video controls playsinline preload="none" aria-label="Bargaining For Our Minds introduction" poster="https://bargaining-media.jameslbarnes.workers.dev/introduction-poster.jpg">
+        <source src="https://bargaining-media.jameslbarnes.workers.dev/introduction.mp4" type="video/mp4">
+        <p><a href="https://bargaining-media.jameslbarnes.workers.dev/introduction.mp4">Watch the introduction</a>.</p>
+      </video>
+      <p class="video-error" role="status" hidden>The video could not load. <a href="https://bargaining-media.jameslbarnes.workers.dev/introduction.mp4">Open the video directly</a> or try again when your connection improves.</p>
+    </section>
+  </main>
+  <script src="site/home/home.js?v=1"></script>
 </body>
 </html>
