@@ -37,8 +37,8 @@ preview_urls = false
 [env.production.vars]
 APP_ORIGIN = "https://bargaining-letter-signing.jameslbarnes.workers.dev"
 ORCID_ENV = "production"
-PUBLIC_LETTER_URL = "https://jameslbarnes.github.io/research-router/site/letter/studies/split-view.html"
-PUBLIC_AUDIT_URL = "https://jameslbarnes.github.io/research-router/site/letter/check/"
+PUBLIC_LETTER_URL = "https://bargainingforourminds.org/science/"
+PUBLIC_AUDIT_URL = "https://bargainingforourminds.org/science/check/"
 
 [[env.production.d1_databases]]
 binding = "DB"

@@ -8,6 +8,7 @@
     "preview": "node preview.mjs",
     "preview:invitations": "node invitations.preview.mjs",
     "build": "node build.mjs",
+    "build:science": "node build-science.mjs",
     "db:local": "wrangler d1 migrations apply DB --local",
     "test": "node --test app.test.mjs",
     "test:worker": "node build.mjs && node --test worker.test.mjs",

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from 'node:fs'
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseLetter } from './app.mjs';
+import './build-science.mjs';
 
 const letter = parseLetter(readFileSync(new URL('../../site/letter/index.html', import.meta.url), 'utf8'));
 writeFileSync(new URL('./generated-letter.json', import.meta.url), JSON.stringify(letter, null, 2) + '\n');

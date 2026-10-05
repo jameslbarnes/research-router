@@ -2,10 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="refresh" content="0; url=site/" />
-<title>The Research Router</title>
+<title>Bargaining For Our Minds</title>
+<script>
+const letterDomain = ['bargainingforourminds.org', 'www.bargainingforourminds.org'].includes(location.hostname);
+location.replace((letterDomain ? 'science/' : 'site/') + location.search + location.hash);
+</script>
 </head>
 <body>
+<p><a href="science/">Read Bargaining For Our Minds</a></p>
 <p><a href="site/">The Research Router: hypothesis and trial</a></p>
 </body>
 </html>

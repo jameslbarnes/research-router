@@ -11,145 +11,144 @@
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   async function test(name, run) { try { await run(); passed++; const li = document.createElement('li'); li.className='pass'; li.textContent='PASS · '+name; results.append(li); }
     catch (error) { failed++; const li=document.createElement('li'); li.className='fail'; li.textContent='FAIL · '+name+' · '+error.message;results.append(li); } }
-  let events, prepared, panel, share, copy, lookup, releaseCitations;
+  let events, panel, share, copy, lookup, releaseCitations, releasePreparation;
+  const letter = { title: 'Bargaining For Our Minds', url: 'https://letter.example/' };
   const candidate = { id: 'candidate-1', name: 'Maya Chen', orcid: '0000-0001-5109-3700', affiliation: 'Example Institute', citations: { count: 1250, url: 'https://openalex.org/A100' }, papers: [{ title: 'A shared paper', url: 'https://doi.org/10.1234/example' }] };
-  async function mount({ unavailableShare = false, initialFailure = false, holdCitations = false, warm = false, lookupFailure = false, citationFailure = false } = {}) {
-    lookup?.cancel();
-    events=[]; prepared=[];
+  async function mount({ unavailableShare = false, preparationFailure = false, holdPreparation = false, holdCitations = false, warm = false, lookupFailure = false, citationFailure = false, names } = {}) {
+    lookup?.cancel(); events=[];
     const citationGate = holdCitations ? new Promise(resolve => { releaseCitations = resolve; }) : Promise.resolve();
+    const preparationGate = holdPreparation ? new Promise(resolve => { releasePreparation = resolve; }) : Promise.resolve();
     share = async data => { events.push({ type:'share', data }); };
     copy = async text => { events.push({ type:'copy', text }); };
     Object.defineProperty(navigator, 'share', { configurable: true, value: unavailableShare ? undefined : data => share(data) });
     Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{ writeText:text=>copy(text) } });
     document.querySelector('#fixture').innerHTML='<div class="sign-share"></div>'; panel=document.querySelector('.sign-share');
-    const network = { candidates:[candidate, {...candidate,id:'candidate-2',name:'Alex Morgan',orcid:'',citations:null}], scannedWorks:1,status:'retrieved',revision:'fixture',citationLookup:{status:'retrieved',matchedCandidates:1} };
+    const network = { candidates:names ? names.map((name,i)=>({...candidate,id:'name-'+i,name})) : [candidate, {...candidate,id:'candidate-2',name:'Alex Morgan',orcid:'',citations:null}], scannedWorks:1,status:'retrieved',revision:'fixture',citationLookup:{status:'retrieved',matchedCandidates:1} };
     const request = async (path, options={}) => {
-      const data=JSON.parse(options.body || '{}'); events.push({ type:'request', path, data });
-      if (path==='invitations' && !options.method) { if(initialFailure) throw new Error('Test service unavailable. Try again.'); return {invitations:[],network:null}; }
+      const data=JSON.parse(options.body || '{}'); events.push({ type:'request', path, data, method:options.method });
       if (path==='invitations/action') return {ok:true};
       if (path==='coauthors') {
-        if (lookupFailure) { lookupFailure=false; throw new Error('Fixture lookup failure'); }
-        return {...network,candidates:[network.candidates[1],{...candidate,citations:null}],citationLookup:{status:'pending',matchedCandidates:0}};
+        if (lookupFailure) throw new Error('Fixture lookup failure');
+        return {...network,candidates:[...network.candidates].reverse(),citationLookup:{status:'pending',matchedCandidates:0}};
       }
       if (path==='coauthors/citations') { await citationGate; if(citationFailure) throw new Error('Fixture citation failure'); return network; }
-      const name=data.candidateId ? network.candidates.find(c=>c.id===data.candidateId).name : data.name || '', id=name || 'general';
-      const invitation={id,name,url:'https://letter.example/?via='+encodeURIComponent(id),papers:[]};
-      prepared.push(invitation);return {invitation};
+      if (path==='invitations') {
+        await preparationGate; if(preparationFailure) throw new Error('Fixture preparation failure');
+        return {invitation:{id:'general',name:'',url:letter.url+'?via=general',papers:[]}};
+      }
+      throw new Error('Unexpected fixture request '+path);
     };
     lookup = window.LetterInvitations.createLookup(request);
     if (warm) { lookup.start(); await flush(); check(!events.some(e=>e.path==='invitations'),'prefetch prepared an invitation before signing'); }
-    window.LetterInvitations.mount(panel,{letter:{title:'Bargaining For Our Minds'}, request, lookup});
-    await flush();
+    window.LetterInvitations.mount(panel,{letter, request, lookup}); await flush();
   }
-  await test('A general invitation is ready without contact information', async () => {
-    await mount(); check(!panel.querySelector('.invite-composer').hidden,'composer missing');
-    check(panel.querySelector('#invite-link').value.includes('via=general'),'referral missing');
+  await test('Sharing works immediately while the coauthor and referral lookups are pending', async () => {
+    await mount({holdCitations:true,holdPreparation:true});
+    check(panel.querySelector('.invite-prompt').textContent==='Would you invite a collaborator to read the letter?','generic prompt missing');
+    check(!panel.querySelector('.invite-native').disabled&&!panel.querySelector('.invite-copy').disabled,'actions blocked on loading');
     check(!events.some(e=>e.type==='share'||e.type==='copy'),'shared without a click');
-    check(events.some(e=>e.path==='coauthors'),'lookup did not start automatically');
+    check(panel.querySelectorAll('button').length===2 && !panel.querySelector('input,form,details,textarea'),'extra setup controls remain');
+    events=[];
+    let finishShare;
+    share=data=>{events.push({type:'share',data});return new Promise(resolve=>{finishShare=resolve;});};
+    panel.querySelector('.invite-native').click();
+    check(events[0].type==='share' && events[0].data.url===letter.url,'immediate share missing canonical URL');
+    releasePreparation(); releaseCitations(); await flush(); finishShare(); await flush();
+    check(!events.some(e=>e.path==='invitations/action'),'canonical URL incorrectly attributed to the late referral link');
+    check(panel.querySelector('.invite-prompt').textContent.includes('a collaborator'),'prompt changed after interaction');
   });
-  await test('Coauthor suggestions show their source papers', async () => {
-    check(panel.querySelector('.invite-candidate-name').textContent==='Maya Chen','name missing');
-    check(panel.querySelector('.invite-candidate details a').textContent==='A shared paper','evidence missing');
-    check(panel.querySelector('.invite-citation-count a').textContent==='1,250 citations · OpenAlex','citation count missing');
-    check(panel.querySelector('.invite-citation-count a').href==='https://openalex.org/A100','source missing');
-    check(panel.querySelectorAll('.invite-citation-count')[1].textContent==='Citation count unavailable.','unknown count shown as zero');
-    check(!panel.querySelector('.invite-suggestions-heading').hidden,'suggestions heading missing');
-    check(panel.querySelector('.invite-candidate summary').textContent==='1 shared paper','shared count missing');
-    check(panel.querySelector('.invite-discovery-note').textContent.includes('Ordered by shared papers and total citations in OpenAlex.'),'ranking description missing');
-    check(panel.querySelector('.invite-discovery-note').textContent.includes('Where citation counts are unavailable, we use shared papers alone.'),'fallback description missing');
-    panel.querySelector('.invite-candidate button').click(); await flush();
-    check(panel.querySelector('#invite-message').value.startsWith('Hi Maya Chen,'),'personal greeting missing');
-  });
-  await test('Edited message reaches sharing before any bookkeeping request', async () => {
-    panel.querySelector('#invite-message').value='Please take a look, Maya.'; events=[];
-    panel.querySelector('.invite-native').click(); await flush();
-    check(events[0].type==='share','network request preceded share and could consume user activation');
-    check(events[0].data.text==='Please take a look, Maya.','edits lost');
-    check(events[0].data.url.includes('Maya'),'wrong invitation link');
+  await test('Ranked coauthors appear in the prompt and stay out of the outgoing message', async () => {
+    await mount();
+    check(panel.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen or Alex Morgan to read the letter?','ranked names missing');
+    events=[]; panel.querySelector('.invite-native').click(); await flush();
+    check(events[0].type==='share','network bookkeeping preceded native sharing');
+    check(events[0].data.text==='I’ve signed this letter asking AI labs to negotiate collectively with researchers. Would you take a look and consider joining me?','message changed or coauthor names leaked into it');
+    check(events[0].data.url===letter.url+'?via=general','prepared referral link missing');
     check(events.some(e=>e.path==='invitations/action'&&e.data.action==='share_menu'),'handoff not recorded');
     check(!/sent|delivered/i.test(panel.querySelector('[data-invite-status]').textContent),'claimed delivery');
   });
-  await test('Cancelling the share menu records no action', async () => {
-    events=[]; share=async()=>{throw new DOMException('Cancelled','AbortError');};
+  await test('Names are limited to two, deduplicated, and rendered as text', async () => {
+    await mount({names:['  Maya Chen  ','maya chen','<img src=x>','Fourth Person']});
+    check(panel.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen, <img src=x>, or any of the 4 coauthors we found to read the letter?','name limit, deduplication or coauthor count failed');
+    check(!panel.querySelector('img'),'coauthor name interpreted as HTML');
+    await mount({names:['Maya Chen']});
+    check(panel.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen to read the letter?','single coauthor grammar incorrect');
+    await mount({names:[]});
+    check(panel.querySelector('.invite-prompt').textContent.includes('a collaborator'),'empty results lost the generic prompt');
+  });
+  await test('Repeated sharing and copying reuse one general invitation', async () => {
+    await mount();
+    panel.querySelector('.invite-native').click(); await flush();
+    panel.querySelector('.invite-copy').click(); await flush();
+    const preparations=events.filter(e=>e.path==='invitations');
+    check(preparations.length===1 && preparations[0].method==='POST' && Object.keys(preparations[0].data).length===0,'extra recipient-specific preparation or history lookup');
+    check(events.find(e=>e.type==='copy').text.endsWith('\n\n'+letter.url+'?via=general'),'copy lost referral URL');
+    check(events.some(e=>e.path==='invitations/action'&&e.data.action==='copied'),'copy not recorded');
+  });
+  await test('Cancelling native sharing records no action and leaves both controls usable', async () => {
+    await mount(); events=[]; share=async()=>{throw new DOMException('Cancelled','AbortError');};
     panel.querySelector('.invite-native').click(); await flush();
     check(!events.some(e=>e.path==='invitations/action'),'cancellation recorded as sharing');
     check(!panel.querySelector('[data-invite-status]').classList.contains('error'),'cancellation shown as error');
+    check(!panel.querySelector('.invite-native').disabled&&!panel.querySelector('.invite-copy').disabled,'controls stuck');
   });
-  await test('Blocked sharing offers a copy fallback', async () => {
+  await test('Blocked sharing offers a working copy action', async () => {
     share=async()=>{throw new DOMException('Blocked','NotAllowedError');};
     panel.querySelector('.invite-native').click(); await flush();
     check(panel.querySelector('[data-invite-status]').textContent.includes('Copy the invitation'),'fallback missing');
-    check(!panel.querySelector('.invite-native').disabled,'share button stuck');
+    panel.querySelector('.invite-copy').click(); await flush();
+    check(events.some(e=>e.type==='copy'),'copy unavailable after share failure');
   });
-  await test('Blocked clipboard leaves the complete invitation selectable', async () => {
-    copy=async()=>{throw new DOMException('Blocked','NotAllowedError');};
+  await test('Blocked clipboard leaves the complete invitation selected for manual copying', async () => {
+    events=[]; copy=async()=>{throw new DOMException('Blocked','NotAllowedError');};
     panel.querySelector('.invite-copy').click(); await flush();
     const fallback=panel.querySelector('.invite-copy-fallback');
-    check(fallback.value.includes('Please take a look, Maya.'),'message missing');
-    check(fallback.value.includes('https://letter.example/'),'link missing');
-  });
-  await test('Switching recipients preserves their edited messages', async () => {
-    panel.querySelector('#invite-name').value='Alex Morgan';
-    panel.querySelector('.invite-manual').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
-    check(panel.querySelector('#invite-message').value.startsWith('Hi Alex Morgan,'),'new message missing');
-    [...panel.querySelectorAll('.invite-history button')].find(b=>b.textContent==='Maya Chen').click();
-    check(panel.querySelector('#invite-message').value==='Please take a look, Maya.','draft overwritten');
+    check(fallback.value.startsWith('I’ve signed this letter')&&fallback.value.endsWith(letter.url+'?via=general'),'incomplete fallback');
+    check(fallback.readOnly&&document.activeElement===fallback&&fallback.selectionEnd===fallback.value.length,'fallback not selectable');
+    check(!events.some(e=>e.path==='invitations/action'),'failed copy recorded');
+    copy=async text=>events.push({type:'copy',text}); panel.querySelector('.invite-copy').click(); await flush();
+    check(!panel.querySelector('.invite-copy-fallback'),'stale fallback remains after successful copy');
   });
   await test('Browsers without native sharing retain copy controls', async () => {
-    await mount({unavailableShare:true});check(panel.querySelector('.invite-native').hidden,'unsupported button visible');
+    await mount({unavailableShare:true}); check(panel.querySelector('.invite-native').hidden,'unsupported button visible');
     panel.querySelector('.invite-copy').click(); await flush();
     check(events.some(e=>e.type==='copy'&&e.text.includes('via=general')),'copy unavailable');
   });
-  await test('Initial service failure can recover without re-signing', async () => {
-    await mount({initialFailure:true});
-    check(panel.querySelector('[data-invite-status]').textContent.includes('unavailable'),'error missing');
-    [...panel.querySelectorAll('button')].find(b=>b.textContent==='Prepare a sharing link').click();await flush();
-    check(!panel.querySelector('.invite-composer').hidden,'retry failed');
+  await test('Referral failure still allows sharing the canonical letter URL', async () => {
+    await mount({preparationFailure:true}); events=[];
+    panel.querySelector('.invite-copy').click(); await flush();
+    panel.querySelector('.invite-native').click(); await flush();
+    check(events.find(e=>e.type==='copy').text.endsWith(letter.url),'canonical copy unavailable');
+    check(events.find(e=>e.type==='share').data.url===letter.url,'canonical share unavailable');
+    check(!events.some(e=>e.path==='invitations/action'),'untracked URL attributed');
+    check(panel.querySelector('.invite-privacy').hidden,'promised attribution for an untracked link');
   });
   await test('A lookup warmed during form review is reused after signing', async () => {
     await mount({warm:true});
     check(events.filter(e=>e.path==='coauthors').length===1,'lookup repeated at signing');
     check(events.filter(e=>e.path==='coauthors/citations').length===1,'citations repeated at signing');
-    check(panel.querySelector('.invite-candidate-name').textContent==='Maya Chen','warm suggestions missing');
+    check(panel.querySelector('.invite-prompt').textContent.includes('Maya Chen or Alex Morgan'),'warm names missing');
   });
-  await test('Coauthors are usable while citations load, and untouched suggestions reorder when ready', async () => {
+  await test('Names appear in citation-ranked order when the lookup settles', async () => {
     await mount({holdCitations:true,warm:true});
-    check(panel.querySelectorAll('.invite-candidate').length===2,'coauthors blocked on citations');
-    check(panel.querySelector('.invite-candidate-name').textContent==='Alex Morgan','initial order incorrect');
-    check(panel.querySelector('.invite-discovery-note').textContent.includes('Loading citation counts'),'loading state missing');
-    check(!panel.querySelector('.invite-candidate button').disabled,'invitation blocked on citations');
+    check(panel.querySelector('.invite-prompt').textContent.includes('a collaborator'),'provisional order flashed');
     releaseCitations(); await flush();
-    check(panel.querySelector('.invite-candidate-name').textContent==='Maya Chen','citation ordering not applied');
-    check(events.filter(e=>e.path==='coauthors').length===1,'mount duplicated the in-flight lookup');
+    check(panel.querySelector('.invite-prompt').textContent.includes('Maya Chen or Alex Morgan'),'final ranking ignored');
+    check(events.filter(e=>e.path==='coauthors').length===1,'in-flight lookup duplicated');
   });
-  await test('Late citations preserve a collaborator choice, open papers, focus and an edited message', async () => {
-    await mount({holdCitations:true});
-    const row=panel.querySelector('.invite-candidate');
-    row.dispatchEvent(new Event('pointerdown',{bubbles:true}));
-    row.querySelector('details').open=true;
-    row.querySelector('button').click(); await flush();
-    const message=panel.querySelector('#invite-message'); message.value='My personal note'; message.focus();
-    releaseCitations(); await flush();
-    check(panel.querySelector('.invite-candidate')===row,'card moved during interaction');
-    check(row.querySelector('details').open,'paper list collapsed');
-    check(document.activeElement===message && message.value==='My personal note','focus or draft lost');
-    check(panel.querySelector('.invite-discovery-note').textContent.includes('Refresh suggestions'),'ordering update unclear');
-  });
-  await test('Lookup and citation failures leave invitations usable', async () => {
+  await test('Coauthor and citation failures leave sharing usable', async () => {
     await mount({lookupFailure:true});
-    check(!panel.querySelector('.invite-composer').hidden,'lookup failure blocked general sharing');
-    check(panel.querySelector('.invite-discover').textContent==='Try lookup again','retry missing');
-    panel.querySelector('.invite-discover').click(); await flush();
-    check(panel.querySelectorAll('.invite-candidate').length===2,'lookup retry did not recover');
+    check(panel.querySelector('.invite-prompt').textContent.includes('a collaborator'),'generic invitation lost');
+    panel.querySelector('.invite-copy').click(); await flush();
+    check(events.some(e=>e.type==='copy'),'lookup failure blocked copying');
     await mount({citationFailure:true});
-    check(panel.querySelectorAll('.invite-candidate').length===2,'citation failure erased coauthors');
-    check(!panel.querySelector('.invite-discover').disabled,'citation failure left lookup stuck');
+    check(panel.querySelector('.invite-prompt').textContent.includes('Alex Morgan or Maya Chen'),'available coauthors lost on citation failure');
   });
-  await test('Cancelling a lookup stops late data from reaching another account', async () => {
+  await test('Cancelled lookup results cannot reach another account', async () => {
     await mount({holdCitations:true});
-    const note=panel.querySelector('.invite-discovery-note').textContent;
+    const prompt=panel.querySelector('.invite-prompt').textContent;
     lookup.cancel(); releaseCitations(); await flush();
-    check(panel.querySelector('.invite-discovery-note').textContent===note,'cancelled result updated the old account');
+    check(panel.querySelector('.invite-prompt').textContent===prompt,'cancelled result updated old account');
   });
   await test('The real signing form starts discovery on connection and carries it through submission', async () => {
     lookup.cancel();
@@ -182,12 +181,11 @@
       form.elements.consent.checked=true;
       form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
       check(root.querySelector('.sign-result-note').textContent.includes('ORCID account is connected'),'signature was blocked on discovery');
-      check(!root.querySelector('.invite-composer').hidden,'general invitation blocked on discovery');
+      check(!root.querySelector('.invite-copy').disabled,'general invitation blocked on discovery');
       releasePapers(); await flush();
-      check(Boolean(root.querySelector('.invite-candidate')),'papers blocked on citation request');
-      check(root.querySelector('.invite-discovery-note').textContent.includes('Loading citation counts'),'partial state missing');
+      check(root.querySelector('.invite-prompt').textContent.includes('a collaborator'),'partial lookup removed generic prompt');
       releaseCounts(); await flush();
-      check(root.querySelector('.invite-citation-count a').textContent.includes('1,250'),'late citations missing');
+      check(root.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen to read the letter?','late ranked coauthor missing');
       check(calls.filter(p=>p==='coauthors').length===1,'signing restarted discovery');
     } finally { releasePapers(); releaseCounts(); await flush(); window.fetch=originalFetch; document.body.classList.remove('signing-companion'); }
   });
