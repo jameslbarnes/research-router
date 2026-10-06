@@ -1,15 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import { lookupCitations } from './citations.mjs';
+import { signatureRowFor } from './signature-records.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export function createSignatories({ db, letter, fetchImpl, providerJSON, now }) {
+export function createSignatories({ db, fetchImpl, providerJSON, now }) {
   const rows = () => db.prepare(`SELECT s.subject, s.name, s.affiliation, i.orcid,
     c.name AS citation_name, c.citations, c.next_check_at
     FROM signatures s JOIN identities i USING(subject)
     LEFT JOIN signer_citations c USING(subject)
-    WHERE s.status='approved' AND i.environment='production' AND s.letter_hash=?
-    ORDER BY s.submitted_at, s.subject`).all(letter.hash);
+    WHERE s.status='approved' AND i.environment='production' AND s.rowid=(${signatureRowFor('s.subject')})
+    ORDER BY s.submitted_at, s.subject`).all();
   const savedCitations = row => row.citation_name === row.name && row.citations ? JSON.parse(row.citations) : null;
   return async () => {
     let current = await rows();
@@ -40,7 +41,7 @@ export function createSignatories({ db, letter, fetchImpl, providerJSON, now }) 
         } finally {
           await db.prepare("DELETE FROM discovery_locks WHERE lock_key='public-signers' AND owner=?").run(owner);
         }
-        // Recheck approval and letter version after the external request.
+        // Recheck approval and the selected signature after the external request.
         current = await rows();
       }
     }

@@ -356,6 +356,7 @@ test('another signer cannot read invitation details or record another person’s
 });
 test('a new signature can follow an invitation and prepare its own next invitation', async t => {
   const x = await signedFixture(t);
+  x.db.prepare("UPDATE signatures SET letter_hash='earlier-copy'").run();
   const invite = (await (await x.post('invitations', { name: 'A colleague' }, x.user)).json()).invitation;
   const other = anotherUser(x);
   const signed = await x.post('signatures', { ...x.payload, via: invite.id }, other); assert.equal(signed.status, 201);
@@ -520,7 +521,36 @@ test('even an approved sandbox request stays out of the public list', async t =>
   x.db.prepare("UPDATE signatures SET status='approved'").run();
   assert.deepEqual(await (await x.req('signatures')).json(), []);
 });
-test('public signers rank by total citations, cache counts, and exclude private and old-version records', async t => {
+test('copy edits keep signers visible and recognised without changing their original signed text', async t => {
+  const x = setup(t, { production: true }); const user = await x.login();
+  await x.post('signatures', x.payload, user);
+  x.db.prepare("UPDATE signatures SET status='approved', letter_hash='earlier-copy', letter_text='Original signed text'").run();
+  const original = x.db.prepare('SELECT * FROM signatures').get();
+  assert.equal((await (await x.req('signatures')).json()).length, 1);
+  const session = await (await x.req('session', { headers: { Cookie: user.cookie } })).json();
+  assert.equal(session.signature.status, 'approved');
+  assert.equal((await x.req('invitations', { headers: { Cookie: user.cookie } })).status, 200);
+  assert.equal((await x.post('signatures', x.payload, user)).status, 200);
+  assert.deepEqual(x.db.prepare('SELECT * FROM signatures').all(), [original]);
+});
+test('latest signature status wins across copy edits without duplicating or reviving old approvals', async t => {
+  const x = setup(t, { production: true }); const user = await x.login();
+  await x.post('signatures', x.payload, user);
+  x.db.prepare("UPDATE signatures SET status='approved', letter_hash='earlier-copy'").run();
+  x.db.prepare(`INSERT INTO signatures SELECT subject, ?, 'Updated copy', name, affiliation, email, updates,
+    'approved', evidence, submitted_at + 1, reviewed_at FROM signatures`).run(letter.hash);
+  assert.equal((await (await x.req('signatures')).json()).length, 1, 'Show each signer once');
+  for (const status of ['pending_review', 'withdrawn']) {
+    x.db.prepare('UPDATE signatures SET status=? WHERE letter_hash=?').run(status, letter.hash);
+    assert.deepEqual(await (await x.req('signatures')).json(), []);
+    const session = await (await x.req('session', { headers: { Cookie: user.cookie } })).json();
+    assert.equal(session.signature.status, status);
+    assert.equal((await (await x.post('signatures', x.payload, user)).json()).signature.status, status);
+  }
+  assert.equal((await x.post('invitations', {}, user)).status, 403);
+  assert.equal(x.db.prepare('SELECT COUNT(*) AS n FROM signatures').get().n, 2);
+});
+test('public signers rank by total citations, cache counts, and keep approved earlier-copy records', async t => {
   const authors = { meta: { count: 3 }, results: [
     { id: 'https://openalex.org/A101', orcid: ORCID, display_name: 'Test Researcher', cited_by_count: 50 },
     { id: 'https://openalex.org/A102', orcid: '0000-0001-5109-3700', display_name: 'Maya Chen', cited_by_count: 1200 },
@@ -541,13 +571,13 @@ test('public signers rank by total citations, cache counts, and exclude private 
   seed('sandbox', 'Sandbox Researcher', 'approved', letter.hash, 'sandbox');
   const get = async () => (await x.req('signatures')).json();
   const visible = await get();
-  assert.deepEqual(visible.map(s => s.name), ['Maya Chen', 'Test Researcher', 'Zero Researcher', 'Unknown Researcher']);
-  assert.deepEqual(visible.map(s => s.citations?.count ?? null), [1200, 50, 0, null]);
+  assert.deepEqual(visible.map(s => s.name), ['Maya Chen', 'Test Researcher', 'Zero Researcher', 'Old Letter Researcher', 'Unknown Researcher']);
+  assert.deepEqual(visible.map(s => s.citations?.count ?? null), [1200, 50, 0, null, null]);
   assert.equal(visible[0].citations.source, 'OpenAlex');
   assert.ok(visible.every(s => Object.keys(s).sort().join() === 'affiliation,citations,name,orcid'));
   const providerCalls = () => x.calls.filter(c => c.url.startsWith('https://api.openalex.org/'));
   assert.equal(providerCalls().length, 1);
-  assert.ok(!/pending|withdrawn|sandbox|old/.test(new URL(providerCalls()[0].url).searchParams.get('filter')));
+  assert.ok(!/pending|withdrawn|sandbox/.test(new URL(providerCalls()[0].url).searchParams.get('filter')));
   await get(); assert.equal(providerCalls().length, 1, 'Reuse cached counts');
   x.advance(25 * 3600000); authors.results[1].cited_by_count = 10;
   assert.equal((await get())[0].name, 'Test Researcher', 'Refresh changes order');

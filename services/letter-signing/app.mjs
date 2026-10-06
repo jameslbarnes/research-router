@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual, createCipheriv, createDeciphe
 import { createInvitations } from './invitations.mjs';
 import { createSignatories } from './signatories.mjs';
 import { screenSignature } from './screening.mjs';
+import { signatureRowFor } from './signature-records.mjs';
 
 const API = '/letter/api';
 const SIGN_PAGE = '/letter/sign/';
@@ -175,14 +176,15 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
       FROM sessions JOIN identities USING(subject) WHERE session_hash=? AND expires_at>? AND environment=?
       AND COALESCE(client_origin, ?)=?`).get(hash(value), now(), config.environment, config.origin, bearer ? publicOrigin : config.origin);
   };
-  const signature = async subject => await db.prepare('SELECT name, affiliation, status, submitted_at FROM signatures WHERE subject=? AND letter_hash=?').get(subject, letter.hash) || null;
+  const signature = async subject => await db.prepare(`SELECT name, affiliation, status, submitted_at
+    FROM signatures WHERE rowid=(${signatureRowFor()})`).get(subject) || null;
   const profileHeaders = async subject => {
     const identity = await db.prepare('SELECT token_encrypted FROM identities WHERE subject=?').get(subject);
     return publicReadHeaders(identity?.token_encrypted, config.encryptionKey);
   };
   const invitations = createInvitations({ config, db, letter, now, fetchImpl, providerJSON, validOrcid,
     loadEvidence: async user => researchEvidence(config, user.orcid, fetchImpl, now(), await profileHeaders(user.subject)) });
-  const signatories = createSignatories({ db, letter, now, fetchImpl, providerJSON });
+  const signatories = createSignatories({ db, now, fetchImpl, providerJSON });
   async function limit(bucket, max = 60) {
     const key = hash(bucket);
     const time = now();

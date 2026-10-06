@@ -1,17 +1,16 @@
 // Re-screen saved requests without changing the letter they consented to.
 // This operator tool is never included in the Worker or public assets.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseLetter, providerJSON } from './app.mjs';
+import { providerJSON } from './app.mjs';
 import { screenSignature } from './screening.mjs';
+import { signatureRowFor } from './signature-records.mjs';
 
 const args = process.argv.slice(2), remote = args.includes('--remote');
 if (args.some(arg => !['--remote', '--confirm-publish'].includes(arg)) || (remote && !args.includes('--confirm-publish'))) {
   console.error('Usage: node screen-pending.mjs [--remote --confirm-publish]');
   process.exit(1);
 }
-const letter = parseLetter(readFileSync(new URL('../../site/letter/index.html', import.meta.url), 'utf8'));
 const environment = remote ? 'production' : 'sandbox';
 const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
 function query(sql) {
@@ -26,8 +25,8 @@ function query(sql) {
   return data.flatMap(item => item.results || []);
 }
 try {
-  const rows = query(`SELECT s.subject, s.name, s.evidence, i.orcid FROM signatures s JOIN identities i USING(subject)
-    WHERE s.status='pending_review' AND s.reviewed_at IS NULL AND s.letter_hash=${quote(letter.hash)}
+  const rows = query(`SELECT s.subject, s.letter_hash, s.name, s.evidence, i.orcid FROM signatures s JOIN identities i USING(subject)
+    WHERE s.status='pending_review' AND s.reviewed_at IS NULL AND s.rowid=(${signatureRowFor('s.subject')})
     AND i.environment=${quote(environment)} ORDER BY s.submitted_at`);
   const counts = { checked: 0, approved: 0, held: 0, changed_during_check: 0, reasons: {} };
   for (const row of rows) {
@@ -36,7 +35,8 @@ try {
     const changed = query(`UPDATE signatures SET status=${quote(screening.status)},
       evidence=${quote(JSON.stringify({ ...evidence, screening }))},
       reviewed_at=${screening.status === 'approved' ? screening.checked_at : 'NULL'}
-      WHERE subject=${quote(row.subject)} AND letter_hash=${quote(letter.hash)} AND name=${quote(row.name)}
+      WHERE subject=${quote(row.subject)} AND letter_hash=${quote(row.letter_hash)} AND name=${quote(row.name)}
+      AND rowid=(${signatureRowFor(quote(row.subject))})
       AND status='pending_review' AND reviewed_at IS NULL RETURNING status`);
     counts.checked++;
     if (!changed.length) counts.changed_during_check++;

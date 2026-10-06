@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { sameName, lookupCitations } from './citations.mjs';
+import { signatureRowFor } from './signature-records.mjs';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const text = (value, max = 240) => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max) : '';
@@ -87,7 +88,7 @@ SELECT ?person ?personName ?paper ?title ?year ?doi ?coauthor ?name ?orcid WHERE
     const saved = await network(user.subject);
     const ttl = saved?.status === 'retrieved' ? DAY : 60 * 1000;
     if (saved?.version === NETWORK_VERSION && now() - saved.refreshedAt < ttl) return saved;
-    const signature = await db.prepare('SELECT evidence, name FROM signatures WHERE subject=? AND letter_hash=?').get(user.subject, letter.hash);
+    const signature = await db.prepare(`SELECT evidence, name FROM signatures WHERE rowid=(${signatureRowFor()})`).get(user.subject);
     const expanded = await bibliography(user, signature?.name);
     if (expanded) return saveNetwork(user.subject, expanded);
     let evidence = signature ? JSON.parse(signature.evidence) : null;
@@ -244,7 +245,7 @@ SELECT ?person ?personName ?paper ?title ?year ?doi ?coauthor ?name ?orcid WHERE
     // links are welcome. Only a newly submitted signature can create a referral.
     await db.prepare(`INSERT OR IGNORE INTO invitation_referrals (subject, letter_hash, invitation_id, created_at)
       SELECT ?, ?, invitations.id, ? FROM invitations JOIN signatures ON
-      signatures.subject=invitations.inviter_subject AND signatures.letter_hash=invitations.letter_hash
+      signatures.rowid=(${signatureRowFor('invitations.inviter_subject')})
       JOIN identities ON identities.subject=invitations.inviter_subject
       WHERE invitations.id=? AND invitations.letter_hash=? AND invitations.inviter_subject<>?
       AND signatures.status IN ('pending_review', 'approved') AND identities.environment=?`)

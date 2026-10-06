@@ -131,9 +131,9 @@ test('Cloudflare runtime screens signatures, keeps sandbox data private and pres
   const copied = await call('invitations/action', { method: 'POST', headers: inviteHeaders, body: JSON.stringify({ id: invitation.id, action: 'copied' }) });
   assert.equal(copied.status, 200);
   assert.equal((await db.prepare('SELECT last_action FROM invitations').first()).last_action, 'copied');
-  // Isolated D1 fixture for the public, current-version citation cache.
+  // Isolated D1 fixture confirms an earlier copy's signature remains visible.
   await db.prepare(`INSERT INTO identities SELECT 'production:'||orcid, orcid, 'production', name, '', authenticated_at FROM identities`).run();
-  await db.prepare(`INSERT INTO signatures SELECT 'production:0000-0002-1825-0097', letter_hash, letter_text, name,
+  await db.prepare(`INSERT INTO signatures SELECT 'production:0000-0002-1825-0097', 'earlier-copy', letter_text, name,
     affiliation, email, updates, 'approved', evidence, submitted_at, reviewed_at FROM signatures`).run();
   const ranked = await (await call('signatures')).json();
   assert.equal(ranked.length, 1); assert.equal(ranked[0].citations.count, 42);

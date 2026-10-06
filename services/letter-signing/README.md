@@ -69,7 +69,7 @@ Production secrets were sent directly to Cloudflare without creating a local cre
 
 The build copies an explicit list of signing assets into the ignored `public/` directory for Cloudflare. It excludes the letter's film, draft notes and service source. The Worker serves signing HTML with `Cache-Control: no-store` and `Referrer-Policy: same-origin` and points reading links back to GitHub Pages. API responses set `Cache-Control: no-store`; OAuth callback redirects use `Referrer-Policy: no-referrer`.
 
-The build extracts the exact letter from `site/letter/index.html`, excludes archived HTML comments, and hashes the title and paragraphs. Rebuild and deploy the Worker alongside each letter revision. The inline form compares the displayed title and paragraphs with the API's current letter before allowing sign-in or signing. A mismatch shows a reload prompt. The server also rejects submissions for an outdated letter hash. Previous signatures are retained under the version they signed; the API shows approvals for the current version only.
+The build extracts the exact letter from `site/letter/index.html`, excludes archived HTML comments, and hashes the title and paragraphs. Rebuild and deploy the Worker alongside each letter revision. The inline form compares the displayed title and paragraphs with the API's current letter before allowing sign-in or signing. A mismatch shows a reload prompt. The server also rejects submissions for an outdated letter hash. Signatures remain visible and recognised through copy edits, so existing signers do not need to sign again. Each record retains the exact text and hash originally signed. If a person has multiple historical records, the latest record controls their public status; an older approval cannot override a later withdrawal or held request.
 
 ## Automatic screening and exceptions
 
@@ -90,7 +90,7 @@ The private evidence field records the screening method, time, reason and up to 
 
 For held requests, follow the stored ORCID profile and supporting records, then use `approve` or `withdraw` above. A missing match can reflect incomplete coverage or a name variation; it is not a finding of misconduct. No notification email is sent and no review turnaround is promised.
 
-To apply the same checks to pending signatures for the current letter version, run `node screen-pending.mjs --remote --confirm-publish`. It preserves prior evidence, skips withdrawn or manually reviewed signatures and does not migrate consent from earlier letter versions. It prints aggregate outcomes without names or private contact information. Provider failures remain pending and can be retried by running the command again.
+To apply the same checks to each signer’s latest pending signature, run `node screen-pending.mjs --remote --confirm-publish`. It preserves prior evidence and the original signed text, and skips withdrawn, superseded or manually reviewed signatures. It prints aggregate outcomes without names or private contact information. Provider failures remain pending and can be retried by running the command again.
 
 Private contact emails are self-supplied and have not been email-verified. The organising checkbox records a preference; this integration sends no email and does not subscribe anybody to a mailing service. An invitation sender or mailing-list integration will need its own verification and delivery flow.
 
