@@ -56,7 +56,7 @@ createServer(async (req, res) => {
       res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invitation preview · ${phone ? 'phone' : 'desktop'}</title>
         <style>body{margin:0;background:#eae8e3;font:14px Arial;color:#17271f}nav{padding:14px;display:flex;gap:24px}a{color:inherit}iframe{display:block;margin:0 auto;border:0;background:#fbfaf7;width:${phone ? '390' : '1200'}px;height:${phone ? '844' : '800'}px}</style>
         <nav><b>${signers ? 'Fictional signers' : 'Andrew Miller'} · local preview</b><a href="/qa${signers ? '?signers' : ''}">Desktop</a><a href="/qa?phone${signers ? '&signers' : ''}">Phone</a><a href="/qa?signers">Signer layout</a><a href="/qa/recipient">Try a fictional recipient</a><a href="/qa/checks">Browser checks</a></nav>
-        <iframe title="Letter invitation preview" allow="web-share; clipboard-write" src="/letter/studies/split-view.html${signers ? '?signers-preview' : '#sign'}"></iframe>`); return;
+        <iframe title="Letter invitation preview" allow="web-share; clipboard-write" src="/letter/studies/split-view.html${signers ? '?signers-preview#signatories' : '#sign'}"></iframe>`); return;
     }
     if (url.pathname === '/qa/recipient' || url.pathname === '/qa/signer') {
       const i = url.pathname.endsWith('recipient') ? 1 : 0;

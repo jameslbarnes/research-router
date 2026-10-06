@@ -310,6 +310,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     } catch (err) { resetLookup(); current = null; showLogin(err.message); }
     finally { root.setAttribute('aria-busy', 'false'); }
   }
+  let signatoryResize;
   async function loadSignatories() {
     const study = document.querySelector('[data-signatories]');
     const roll = document.getElementById('roll') || study?.querySelector('[data-signatory-list]');
@@ -333,24 +334,53 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       list.sort((a, b) => (citationCount(b) ?? -1) - (citationCount(a) ?? -1));
       if (!list.length) return;
       roll.textContent = '';
+      if (study) { roll.setAttribute('role', 'list'); roll.setAttribute('aria-label', 'Signatories'); }
       list.forEach(s => {
         const li = document.createElement(study ? 'div' : 'li'), name = document.createElement(study ? 'p' : 'span');
+        if (study) { li.className = 'signature-entry'; li.setAttribute('role', 'listitem'); }
         name.className = study ? 'signature-name' : 'who'; name.textContent = s.name; li.append(name);
+        if (/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(s.orcid || '')) {
+          const link = document.createElement('a'); link.href = 'https://orcid.org/' + s.orcid; link.textContent = s.name;
+          link.target = '_blank'; link.rel = 'noopener noreferrer'; link.setAttribute('aria-label', s.name + ' · ORCID record');
+          name.textContent = ''; name.append(link);
+        }
         if (s.affiliation) { const aff = document.createElement(study ? 'p' : 'span'); aff.className = study ? 'signature-aff' : 'aff'; aff.textContent = s.affiliation; li.append(aff); }
         if (citationCount(s) !== null) {
           const citations = document.createElement('p'), source = document.createElement('a');
           citations.className = 'signature-citations'; source.href = s.citations.url;
           source.target = '_blank'; source.rel = 'noopener noreferrer';
-          source.textContent = citationCount(s).toLocaleString('en-US') + ' citations · OpenAlex';
+          source.textContent = citationCount(s).toLocaleString('en-US') + ' citations';
+          source.setAttribute('aria-label', source.textContent + ' · OpenAlex');
           if (Number.isFinite(s.citations.retrievedAt)) source.title = 'Checked ' + new Date(s.citations.retrievedAt).toLocaleDateString('en-US');
           citations.append(source); li.append(citations);
-        }
-        if (/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(s.orcid || '')) {
-          const link = document.createElement('a'); link.href = 'https://orcid.org/' + s.orcid; link.textContent = link.href; li.append(link);
         }
         roll.append(li);
       });
       count.textContent = list.length + (list.length === 1 ? ' signature' : ' signatures');
+      if (study) {
+        signatoryResize?.disconnect();
+        study.querySelector('[data-signatory-toggle]')?.remove();
+        const meta = study.querySelector('.signature-meta');
+        if (meta) {
+          const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'signature-toggle';
+          toggle.dataset.signatoryToggle = ''; roll.id ||= 'public-signatures'; toggle.setAttribute('aria-controls', roll.id);
+          roll.onkeydown = event => {
+            if (event.target !== roll || study.dataset.expanded === 'true' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            roll.scrollLeft = event.key === 'Home' ? 0 : event.key === 'End' ? roll.scrollWidth :
+              roll.scrollLeft + (event.key === 'ArrowRight' ? 1 : -1) * roll.clientWidth * .8;
+          };
+          const update = () => {
+            const expanded = study.dataset.expanded === 'true', overflow = roll.scrollWidth > roll.clientWidth + 1;
+            toggle.hidden = !expanded && !overflow; toggle.textContent = expanded ? 'Collapse' : 'View all';
+            toggle.setAttribute('aria-expanded', String(expanded));
+            if (!expanded && overflow) roll.tabIndex = 0; else roll.removeAttribute('tabindex');
+          };
+          toggle.addEventListener('click', () => { study.dataset.expanded = String(study.dataset.expanded !== 'true'); update(); });
+          meta.append(toggle); update();
+          if (window.ResizeObserver) { signatoryResize = new ResizeObserver(update); signatoryResize.observe(roll); }
+        }
+      }
       const context = document.querySelector('[data-signatory-context]');
       if (context && list.length >= 3) {
         const featured = list.filter(s => citationCount(s) !== null).slice(0, 2);

@@ -1,5 +1,23 @@
 /* Signing controls share the letter's existing paper, ink and type. */
 .signature-citations{font:12px/1.6 Figtree,Arial,sans-serif;color:#647067;margin:6px 0 10px}
+/* A compact roll of names beneath the letter. */
+[data-signatories].signature-block{padding:26px 0 10px}
+[data-signatories] .signature-meta{align-items:center;gap:18px;margin-bottom:26px;font-size:12px}
+[data-signatories] .signature-meta>span:first-child{margin-right:auto}
+[data-signatory-list]{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px,calc((100% - 32px)/2));gap:32px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#243a2c40 transparent;padding:2px 0 14px}
+.signature-entry{min-width:0}
+[data-signatories] .signature-name{font:22px/1.3 Georgia,'Times New Roman',serif;letter-spacing:-.015em;margin:0 0 7px;overflow-wrap:anywhere}
+[data-signatories] .signature-name a{text-decoration:none}
+[data-signatories] .signature-name a:hover{text-decoration:underline;text-decoration-color:#243a2c70}
+[data-signatories] .signature-aff{font:12px/1.6 Figtree,Arial,sans-serif;color:#647067;margin:0;overflow-wrap:anywhere}
+[data-signatories] .signature-citations{font-size:11px;margin:9px 0 0}
+[data-signatories] .signature-citations a{text-decoration:none}
+[data-signatories] .signature-citations a:hover{text-decoration:underline}
+.signature-toggle{border:0;border-bottom:1px solid #243a2c60;background:none;padding:5px 0;font:12px/1.5 Figtree,Arial,sans-serif;color:inherit;white-space:nowrap;cursor:pointer}
+.signature-toggle[hidden]{display:none}
+[data-signatories][data-expanded=true] [data-signatory-list]{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+.signature-block+.inline-signing{margin-top:24px}
+@media(max-width:600px){[data-signatory-list]{grid-auto-columns:230px;gap:28px}[data-signatories][data-expanded=true] [data-signatory-list]{grid-template-columns:1fr;gap:24px}}
 [data-signing]{--sign-ink:#17271f;--sign-muted:#647067;--sign-rule:#243a2c2b;color:var(--sign-ink);font:16px/1.6 Figtree,Arial,sans-serif}
 [data-signing] [hidden]{display:none!important}
 [data-signing] p{margin:0 0 18px;max-width:58ch}

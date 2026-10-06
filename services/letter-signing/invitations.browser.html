@@ -228,7 +228,7 @@
     const frame=document.createElement('iframe'); frame.title='Fictional signer checks'; document.body.append(frame);
     try {
       const verify=async (existing, approved, expectedNames, expectedContext, failure=false) => {
-        await new Promise(resolve=>{ frame.onload=resolve; frame.srcdoc='<p data-signatory-context>An open letter from scientists to the frontier labs</p><section data-signatories><span data-signatory-count>1 signature</span><div data-signatory-list>Existing signature</div></section>'; });
+        await new Promise(resolve=>{ frame.onload=resolve; frame.srcdoc='<link rel="stylesheet" href="/letter/sign.css"><p data-signatory-context>An open letter from scientists to the frontier labs</p><section data-signatories><div class="signature-meta"><span>Signatories</span><span data-signatory-count>1 signature</span></div><div data-signatory-list>Existing signature</div></section>'; });
         frame.contentWindow.fetch=async url=>{
           if(new URL(url,location.href).pathname.endsWith('signatories.json')) return Response.json(existing);
           if(failure) throw new Error('Fixture service unavailable');
@@ -249,7 +249,20 @@
         'An open letter from Maya Chen, Alex Morgan and 1 other scientist to the frontier labs');
       check(doc.querySelector('[data-signatory-count]').textContent==='3 signatures','Duplicate counted twice');
       check(doc.querySelectorAll('.signature-citations').length===2,'Unknown citation count shown as zero');
-      check(doc.querySelector('.signature-citations a').textContent==='1,200 citations · OpenAlex','Citation source absent');
+      check(doc.querySelector('.signature-citations a').textContent==='1,200 citations','Citation label too verbose');
+      check(doc.querySelector('.signature-citations a').getAttribute('aria-label')==='1,200 citations · OpenAlex','Citation source absent');
+      check(doc.querySelector('.signature-name a').href==='https://orcid.org/'+maya.orcid,'Name lost its research record link');
+      check(!doc.querySelector('[data-signatory-list]').textContent.includes('https://'),'Raw profile URL leaked into the roll');
+      const toggle=doc.querySelector('[data-signatory-toggle]'), roll=doc.querySelector('[data-signatory-list]');
+      check(!toggle.hidden && toggle.getAttribute('aria-controls')===roll.id,'Overflowing names cannot be expanded');
+      roll.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+      check(roll.scrollLeft>0,'Keyboard cannot scroll the names');
+      roll.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
+      check(roll.scrollLeft===0,'Keyboard cannot return to the first name');
+      toggle.click();
+      check(toggle.getAttribute('aria-expanded')==='true' && doc.querySelector('[data-signatories]').dataset.expanded==='true','Expand state missing');
+      check(roll.scrollWidth<=roll.clientWidth+1,'Expanded list still scrolls horizontally');
+      toggle.click(); check(toggle.getAttribute('aria-expanded')==='false','Collapse state missing');
       await verify([unknown],[maya],['Maya Chen','Unknown Researcher'],'An open letter from scientists to the frontier labs');
       await verify([unknown],[{...alex,citations:null},{...maya,citations:null}],['Unknown Researcher','Alex Morgan','Maya Chen'],
         'An open letter from 3 scientists to the frontier labs');
