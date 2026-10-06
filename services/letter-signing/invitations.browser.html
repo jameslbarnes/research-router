@@ -167,7 +167,7 @@
       if(path==='profile') return Response.json({status:'retrieved',name:'Fixture Researcher',suggestedAffiliation:'Example Lab',affiliations:[],keywords:[],works:[]});
       if(path==='coauthors') { await papersReady; return Response.json(network); }
       if(path==='coauthors/citations') { await countsReady; return Response.json({...network,candidates:[candidate],citationLookup:{status:'retrieved',matchedCandidates:1}}); }
-      if(path==='signatures') return Response.json({signature:{name:'Fixture Researcher',affiliation:'Example Lab',status:'pending_review'}});
+      if(path==='signatures') return Response.json({signature:{name:'Fixture Researcher',affiliation:'Example Lab',status:'approved'}});
       if(path==='invitations'&&!options.method) return Response.json({invitations:[],network:null});
       if(path==='invitations') return Response.json({invitation:{id:'general',name:'',url:'https://letter.example/?via=general',papers:[]}});
       throw new Error('Unexpected fixture request '+path);
@@ -180,7 +180,8 @@
       const form=root.querySelector('form'); check(Boolean(form),'slow lookup blocked the signing form');
       form.elements.consent.checked=true;
       form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
-      check(root.querySelector('.sign-result-note').textContent.includes('ORCID account is connected'),'signature was blocked on discovery');
+      check(root.querySelector('.sign-result-note').textContent==='Thank you for signing the letter.','signature was blocked on discovery');
+      check(root.querySelector('h2').textContent==='Test signature saved.','sandbox signature claimed to be public');
       check(!root.querySelector('.invite-copy').disabled,'general invitation blocked on discovery');
       releasePapers(); await flush();
       check(root.querySelector('.invite-prompt').textContent.includes('a collaborator'),'partial lookup removed generic prompt');
@@ -188,6 +189,40 @@
       check(root.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen to read the letter?','late ranked coauthor missing');
       check(calls.filter(p=>p==='coauthors').length===1,'signing restarted discovery');
     } finally { releasePapers(); releaseCounts(); await flush(); window.fetch=originalFetch; document.body.classList.remove('signing-companion'); }
+  });
+  await test('Automatic approval refreshes the public list; held signatures show a private review result', async () => {
+    const frame=document.createElement('iframe'); frame.title='Automatic screening checks'; document.body.append(frame);
+    try {
+      for (const outcome of ['approved','pending_review']) {
+        await new Promise(resolve=>{ frame.onload=resolve; frame.srcdoc='<body class="signing-companion"><section data-signing></section><section data-signatories><span data-signatory-count>0 signatures</span><div data-signatory-list></div></section></body>'; });
+        let signed=false, publicReads=0;
+        const signer={name:'Fixture Researcher',affiliation:'Example Lab',orcid:'0000-0002-1825-0097',citations:null};
+        frame.contentWindow.fetch=async (url,options={})=>{
+          const target=new URL(url,location.href), path=target.pathname.split('/api/')[1];
+          if(target.pathname.endsWith('signatories.json')) return Response.json([]);
+          if(path==='session') return Response.json({configured:true,environment:'production',csrf:'fixture-csrf',signature:null,
+            user:{...signer,url:'https://orcid.org/'+signer.orcid},letter:{title:'Fixture letter',hash:'fixture',paragraphs:[]}});
+          if(path==='profile') return Response.json({status:'unavailable'});
+          if(path==='signatures'&&options.method==='POST') { signed=true; return Response.json({signature:{...signer,status:outcome}}); }
+          if(path==='signatures') { publicReads++; return Response.json(signed&&outcome==='approved'?[signer]:[]); }
+          throw new Error('Unexpected screening fixture request '+path);
+        };
+        await new Promise((resolve,reject)=>{ const script=frame.contentDocument.createElement('script'); script.src='/letter/sign.js'; script.onload=resolve; script.onerror=reject; frame.contentDocument.body.append(script); });
+        await flush();
+        const doc=frame.contentDocument, form=doc.querySelector('form'); check(Boolean(form),'signing form missing');
+        form.elements.consent.checked=true;
+        form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
+        check(doc.querySelector('h2').textContent===(outcome==='approved'?'Your name has been added.':'Your signature is awaiting review.'),'wrong screening result');
+        if(outcome==='approved') {
+          check(publicReads===2,'public list did not refresh after automatic approval');
+          check(doc.querySelector('[data-signatory-list]').textContent.includes(signer.name),'approved name missing until reload');
+          check(doc.querySelector('[data-signatory-count]').textContent==='1 signature','approved signer count stale');
+        } else {
+          check(!doc.querySelector('[data-signatory-list]').textContent.includes(signer.name),'held signature leaked publicly');
+          check(doc.querySelector('.sign-result-note').textContent.includes('Your signature is saved.'),'held signature not acknowledged');
+        }
+      }
+    } finally { frame.remove(); }
   });
   await test('Public signers sort by citations and supply real names and an accurate count to the subtitle', async () => {
     const frame=document.createElement('iframe'); frame.title='Fictional signer checks'; document.body.append(frame);

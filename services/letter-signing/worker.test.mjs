@@ -7,7 +7,7 @@ import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { fixtureActivities, fixturePapers, fixtureCitationAuthors, fixtureBibliography } from './invitations.fixtures.mjs';
 
-test('Cloudflare runtime completes OAuth and stores a private, idempotent signature in D1', async t => {
+test('Cloudflare runtime screens signatures, keeps sandbox data private and preserves idempotency', async t => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('./worker.mjs', import.meta.url))],
     bundle: true, write: false, format: 'esm', platform: 'neutral', external: ['node:*'] });
   const origin = 'http://localhost:8766';
@@ -33,6 +33,9 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
       }
       if (new URL(request.url).hostname === 'api.crossref.org') {
         assert.equal(request.headers.get('authorization'), null);
+        if (new URL(request.url).pathname === '/works') return Response.json({ status: 'ok', message: {
+          items: [{ DOI: '10.1234/fixture', author: [{ given: 'Fixture', family: 'Researcher', ORCID: 'https://orcid.org/0000-0002-1825-0097' }] }], 'total-results': 1,
+        } });
         const paper = fixturePapers[decodeURIComponent(new URL(request.url).pathname.split('/works/')[1])];
         return paper ? Response.json(paper) : new Response('Not found', { status: 404 });
       }
@@ -45,7 +48,7 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
   t.after(() => mf.dispose());
   const db = await mf.getD1Database('DB');
   const sql = readdirSync(new URL('./migrations/', import.meta.url)).sort().map(file => readFileSync(new URL('./migrations/' + file, import.meta.url), 'utf8')).join('\n');
-  for (const statement of sql.split(';').filter(s => s.trim())) await db.prepare(statement).run();
+  for (const statement of sql.replace(/--[^\n]*/g, '').split(';').filter(s => s.trim())) await db.prepare(statement).run();
   const call = (path, options = {}) => mf.dispatchFetch(origin + '/letter/api/' + path, options);
   const page = await mf.dispatchFetch(origin + '/letter/sign/');
   assert.equal(page.status, 200, await page.clone().text());
@@ -82,7 +85,8 @@ test('Cloudflare runtime completes OAuth and stores a private, idempotent signat
       name: 'Fixture Researcher', affiliation: 'Test only', email: '', updates: false, consent: true, letterHash: session.letter.hash,
     }) });
   const submitted = await submit(); assert.equal(submitted.status, 201);
-  assert.equal((await submitted.json()).signature.status, 'pending_review');
+  assert.equal((await submitted.json()).signature.status, 'approved');
+  assert.equal(JSON.parse((await db.prepare('SELECT evidence FROM signatures').first()).evidence).screening.reason, 'publication_match');
   assert.equal((await submit()).status, 200);
   assert.equal((await db.prepare('SELECT count(*) AS n FROM signatures').first()).n, 1);
   const publicList = await call('signatures', { headers: { Origin: 'https://example.github.io' } });

@@ -1,6 +1,6 @@
 # ORCID signing on Cloudflare
 
-This Worker requires ORCID authentication before accepting a signature request. It uses Cloudflare D1. New requests stay private until an operator reviews their academic evidence and approves them. ORCID authentication confirms control of the record, not academic credentials.
+This Worker requires ORCID authentication before accepting a signature request. It uses Cloudflare D1. New signatures are screened automatically against publisher records in Crossref. Clear ORCID and author-name matches appear immediately; unmatched, ambiguous and unavailable records stay private for operator review. ORCID authentication confirms control of the record, not academic credentials.
 
 The letter uses the repository's existing GitHub Pages site, published from the root of `main`. Read [the published letter](https://bargainingforourminds.org/science/) or open [the signing page](https://bargaining-letter-signing.jameslbarnes.workers.dev/letter/sign/).
 
@@ -8,7 +8,7 @@ The form sits below the letter on GitHub Pages. Cloudflare hosts the API and a s
 
 The inline flow works without third-party cookies. The letter stores a temporary random verifier in its tab's session storage before visiting Cloudflare. The bridge creates a single-use handoff tied to its SHA-256 challenge and returns only to the configured letter URL. The letter removes the handoff from its fragment immediately and exchanges it with the verifier for a one-hour application session. That session token stays in memory, is restricted to the letter origin and never contains an ORCID token. Refreshing the page requires reconnecting. Signing still requires an explicit consent checkbox and a session CSRF token.
 
-Public ORCID names and current affiliations can prefill the editable form. An expandable summary shows public affiliations, research keywords and up to three recent works. Profile loading cannot overwrite fields the visitor has edited. Empty records and provider failures leave manual entry available. Email and update preferences remain for the visitor to enter. Reading public data does not require broader ORCID consent; see [ORCID's record-reading tutorial](https://info.orcid.org/documentation/api-tutorials/api-tutorial-read-data-on-a-record/). Profile and review lookups use the documented `/person` and `/activities` endpoints.
+Public ORCID names and current affiliations can prefill the editable form. An expandable summary shows public affiliations, research keywords and up to three recent works. Profile loading cannot overwrite fields the visitor has edited. Empty records and provider failures leave manual entry available. Email and update preferences remain for the visitor to enter. Reading public data does not require broader ORCID consent; see [ORCID's record-reading tutorial](https://info.orcid.org/documentation/api-tutorials/api-tutorial-read-data-on-a-record/). Profile and coauthor lookups use the documented `/person` and `/activities` endpoints.
 
 Public reads reuse the encrypted token obtained during sign-in. Decryption and authenticated ORCID requests happen only on the Worker. ORCID confirms that [`/authenticate` tokens also allow public reads](https://info.orcid.org/ufaqs/how-do-i-get-read-public-access-token/). The browser receives only the selected profile fields.
 
@@ -39,7 +39,7 @@ Use separate clients for sandbox and production. The sandbox is a separate ORCID
 | Field | Value |
 | --- | --- |
 | Application name | Bargaining For Our Minds |
-| Description | Connect an ORCID iD when signing an open letter from scientists to frontier AI labs. We use public research records to review academic identity. |
+| Description | Connect an ORCID iD when signing an open letter from scientists to frontier AI labs. We check public publication records to confirm a research connection. |
 | Scope | `/authenticate` |
 | Local sandbox callback | `http://localhost:8766/letter/api/auth/orcid/callback` |
 | Production application website | `https://bargainingforourminds.org/science/` |
@@ -71,7 +71,7 @@ The build copies an explicit list of signing assets into the ignored `public/` d
 
 The build extracts the exact letter from `site/letter/index.html`, excludes archived HTML comments, and hashes the title and paragraphs. Rebuild and deploy the Worker alongside each letter revision. The inline form compares the displayed title and paragraphs with the API's current letter before allowing sign-in or signing. A mismatch shows a reload prompt. The server also rejects submissions for an outdated letter hash. Previous signatures are retained under the version they signed; the API shows approvals for the current version only.
 
-## Reviewing signatures
+## Automatic screening and exceptions
 
 `npm run db:local` initialises only the local database. Use these commands from this directory:
 
@@ -84,11 +84,17 @@ node review.mjs withdraw ORCID LETTER_HASH
 
 They operate on the local sandbox by default. `--remote` selects the explicitly configured production environment. A remote approval or withdrawal additionally requires `--confirm-publish` because it changes the public list. Do not run those commands during an unpublished design review.
 
-Review the authenticated ORCID profile and the stored public affiliation/work evidence. Examine who supplied each assertion. Cross-check uncertain cases against an institutional profile or published work. Sparse or unavailable records stay pending; there is no publication-count threshold or automatic “verified scientist” badge. A public-record fetch failure preserves the request for manual review. An ORCID iD supplied by the browser is ignored.
+On submission, `screening.mjs` queries [Crossref publisher metadata](https://www.crossref.org/documentation/retrieve-metadata/rest-api/) using the authenticated ORCID. It checks up to 20 publication records within a four-second request deadline. Automatic approval requires a DOI-bearing record with exactly one author carrying that ORCID and a compatible name. Case, accents, omitted middle names and matching middle initials are accepted. Conflicting names, ambiguous authorship, missing records and provider failures stay pending. A citation count is never required. This establishes a research connection; it does not verify the entered affiliation or award an academic credential. Browser-supplied ORCID values and approval status are ignored.
+
+The private evidence field records the screening method, time, reason and up to three supporting DOI links. Crossref's publisher-reported `authenticated-orcid` flag is retained as evidence but is not required, since publishers do not consistently supply it. Only the public ORCID is sent to Crossref. Contact emails and ORCID access tokens stay private. A duplicate submission reuses the saved result, including a withdrawal.
+
+For held requests, follow the stored ORCID profile and supporting records, then use `approve` or `withdraw` above. A missing match can reflect incomplete coverage or a name variation; it is not a finding of misconduct. No notification email is sent and no review turnaround is promised.
+
+To apply the same checks to pending signatures for the current letter version, run `node screen-pending.mjs --remote --confirm-publish`. It preserves prior evidence, skips withdrawn or manually reviewed signatures and does not migrate consent from earlier letter versions. It prints aggregate outcomes without names or private contact information. Provider failures remain pending and can be retried by running the command again.
 
 Private contact emails are self-supplied and have not been email-verified. The organising checkbox records a preference; this integration sends no email and does not subscribe anybody to a mailing service. An invitation sender or mailing-list integration will need its own verification and delivery flow.
 
-The existing `site/letter/signatories.json` remains unchanged. The main letter and selected design add approved production records from the API when available. New requests remain private until reviewed.
+The existing `site/letter/signatories.json` remains unchanged. The main letter and selected design add approved production records from the API when available. Clear automatic matches appear on submission; exceptions remain private until approved. The browser refreshes the public list after a successful approval.
 
 Public signers are ordered by total citations in OpenAlex, using a unique primary ORCID match and a compatible name. Each available count links to its source. Unknown counts follow known counts; ties retain signing order. Static and ORCID signatures with the same name and affiliation are counted once. The subtitle gains a total once three people have signed. When at least two have matched citation records, it names the two highest-cited signers and gives the number of others. Featured names come from the current public list.
 
@@ -102,7 +108,7 @@ npm run test:worker
 npm run check
 ```
 
-`check` performs a Cloudflare build with `--dry-run`; it does not deploy. The core tests use isolated, in-memory SQLite databases and mocked provider responses. They cover state binding and replay, explicit consent, encrypted tokens, CSRF, input validation, duplicate submissions, sandbox isolation, the inline handoff and profile extraction. Invitation tests cover coauthor evidence, namesake separation, caching, limits, private access and referral attribution. `test:worker` runs the OAuth, signature and invitation flow in Cloudflare's local runtime with D1 and fixture provider responses. It also checks signing assets, the handoff to GitHub Pages and endpoint access rules. Duplicate submissions produce one private request. These tests do not authenticate a real ORCID account.
+`check` performs a Cloudflare build with `--dry-run`; it does not deploy. The core tests use isolated, in-memory SQLite databases and mocked provider responses. They cover state binding and replay, explicit consent, encrypted tokens, CSRF, input validation, duplicate submissions, sandbox isolation, the inline handoff and profile extraction. Invitation tests cover coauthor evidence, namesake separation, caching, limits, private access and referral attribution. `test:worker` runs the OAuth, signature and invitation flow in Cloudflare's local runtime with D1 and fixture provider responses. It also checks signing assets, the handoff to GitHub Pages and endpoint access rules. Tests also cover automatic publication, uncertain matches, provider failures, sandbox isolation and withdrawal preservation. Duplicate submissions produce one signature with one saved screening result. These tests do not authenticate a real ORCID account.
 
 Opaque session cookies on Cloudflare are HttpOnly and SameSite=Lax, with Secure and `__Host-` names in production. OAuth states are browser-bound, expire after ten minutes and are consumed once. Cookie sessions expire after twelve hours. Inline handoffs expire after two minutes; inline sessions expire after one hour. Cross-origin authenticated requests require the exact configured letter origin and a bearer session with that audience. Cookies are never accepted as inline authentication, and CORS does not allow credentials. POSTs require an allowed origin and a custom request header; authenticated mutations also require a session CSRF token. Login, profile and submission requests are rate-limited in D1. OAuth tokens are encrypted using AES-256-GCM and never sent to the browser. Logs intentionally omit tokens, callback parameters and contact data.
 

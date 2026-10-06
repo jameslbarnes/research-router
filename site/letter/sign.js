@@ -157,7 +157,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     root.innerHTML = '<p>Sign in with ORCID to connect your name to your research record. You’ll review your details before submitting your signature. We’ll look up your public coauthors while you review.</p>' +
       '<button class="orcid-button" type="button"><img alt="" width="24" height="24"><span>Continue with ORCID</span></button>' +
       '<p class="sign-help">ORCID is a free researcher identifier. You can create an account during sign-in.</p>' +
-      '<p class="sign-small">We’ll review your research identity before publishing your signature. Your name, affiliation and ORCID iD will appear on the letter once approved.</p>' +
+      '<p class="sign-small">We check your ORCID against publication records. Clear matches appear immediately. Other signatures are held for review.</p>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p><button class="sign-retry" type="button" hidden>Try again</button>';
     environment();
     const button = root.querySelector('.orcid-button'); button.querySelector('img').src = icon;
@@ -182,7 +182,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<div class="sign-field"><label for="sign-affiliation">Affiliation or field</label><input id="sign-affiliation" name="affiliation" autocomplete="organization" maxlength="240"><p data-aff-source class="sign-small"></p></div>' +
       '<div class="sign-field"><label for="sign-email">Email for organising updates (optional)</label><input id="sign-email" name="email" type="email" autocomplete="email" maxlength="254"></div>' +
       '<label class="sign-check"><input name="updates" type="checkbox"><span>Email me about organising collective bargaining.</span></label>' +
-      '<p class="sign-small">Your name, affiliation and ORCID iD will be public once approved. Your email will stay private.</p>' +
+      '<p class="sign-small">Your name, affiliation and ORCID iD will appear publicly after the research record check. Your email will stay private.</p>' +
       (referral ? '<p class="sign-small">When you sign, we’ll record the invitation link that brought you here.</p>' : '') +
       '<label class="sign-check"><input name="consent" type="checkbox" required><span>I agree to the letter and want my name added.</span></label>' +
       '<button class="sign-submit" type="submit">Submit my signature</button></form>' +
@@ -202,7 +202,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         status('Enter an email address to receive organising updates.', true); form.elements.email.focus(); return;
       }
       const button = form.querySelector('button[type="submit"]'); button.disabled = true;
-      status('Submitting your signature…');
+      status('Saving your signature and checking your research record…');
       try {
         const result = await request('signatures', { method: 'POST', body: JSON.stringify({
           name: form.elements.name.value.trim(), affiliation: form.elements.affiliation.value.trim(),
@@ -212,6 +212,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
         current.signature = result.signature; referral = '';
         try { sessionStorage.removeItem(referralKey); } catch (_) { /* Optional attribution. */ }
         showResult();
+        if (current.signature.status === 'approved') void loadSignatories();
       } catch (err) { status(err.message, true); button.disabled = false; }
     });
   }
@@ -261,10 +262,10 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<p data-status class="sign-status" role="status" aria-live="polite"></p>';
     root.prepend(identity()); environment();
     const approved = current.signature.status === 'approved', withdrawn = current.signature.status === 'withdrawn';
-    root.querySelector('h2').textContent = approved ? 'Your name has been added.' : withdrawn ? 'Your signature has been withdrawn.' : 'Your signature is awaiting review.';
+    root.querySelector('h2').textContent = approved ? (current.environment === 'sandbox' ? 'Test signature saved.' : 'Your name has been added.') : withdrawn ? 'Your signature has been withdrawn.' : 'Your signature is awaiting review.';
     root.querySelector('.sign-public-name').textContent = current.signature.name;
     root.querySelector('.sign-public-affiliation').textContent = current.signature.affiliation;
-    root.querySelector('.sign-result-note').textContent = withdrawn ? 'Your signature is no longer included in the public list.' : approved ? 'Thank you for signing the letter.' : 'Your ORCID account is connected. We’ll check your research identity before adding your name to the public list.';
+    root.querySelector('.sign-result-note').textContent = withdrawn ? 'Your signature is no longer included in the public list.' : approved ? 'Thank you for signing the letter.' : 'Your signature is saved. We need to check your research record before adding your name to the public list.';
     const invitations = root.querySelector('[data-invitations]');
     if (withdrawn) { invitations.remove(); return; }
     if (window.LetterInvitations) {

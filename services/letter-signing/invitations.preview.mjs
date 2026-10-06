@@ -25,11 +25,12 @@ for (const [i, orcid] of [andrew.profile.orcid, '0000-0001-5109-3700'].entries()
   db.prepare('INSERT INTO sessions (session_hash, subject, csrf, expires_at) VALUES (?, ?, ?, ?)')
     .run(createHash('sha256').update(token).digest('hex'), subject, randomBytes(32).toString('base64url'), Date.now() + 12 * 60 * 60 * 1000);
   if (!i) db.prepare(`INSERT INTO signatures (subject, letter_hash, letter_text, name, affiliation, email, updates, status, evidence, submitted_at)
-    VALUES (?, ?, ?, ?, ?, '', 0, 'pending_review', ?, ?)`)
+    VALUES (?, ?, ?, ?, ?, '', 0, 'approved', ?, ?)`)
     .run(subject, letter.hash, letter.text, name, andrew.profile.affiliation, JSON.stringify({ status: 'retrieved', works: andrew.activities.works.group,
       retrieved_at: Date.now(), returned_work_groups: 2 }), Date.now());
 }
 const app = createApp({ config, db, letter, fetchImpl: async url => {
+  if (url.startsWith('https://api.crossref.org/works?')) return Response.json({ status: 'ok', message: { items: [], 'total-results': 0 } });
   if (url.startsWith('https://sparql.dblp.org/sparql?')) return Response.json(andrew.dblpBibliography);
   if (url.startsWith('https://api.openalex.org/authors?')) {
     const ids = new URL(url).searchParams.get('filter').slice('orcid:'.length).split('|');

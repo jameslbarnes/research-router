@@ -10,7 +10,7 @@ const ORCID = '0000-0002-1825-0097'; // ORCID's documented example; used only in
 const canonical = readFileSync(new URL('../../site/letter/index.html', import.meta.url), 'utf8');
 const letter = parseLetter(canonical);
 const migration = readdirSync(new URL('./migrations/', import.meta.url)).sort().map(file => readFileSync(new URL('./migrations/' + file, import.meta.url), 'utf8')).join('\n');
-function setup(t, { production = false, providerError = false, evidenceError = false, tokenOverrides = {}, publicLetter, person = {}, activities, papers = {}, citationAuthors = fixtureCitationAuthors, citationError = false, beforeCitation, bibliography = { results: { bindings: [] } } } = {}) {
+function setup(t, { production = false, providerError = false, evidenceError = false, tokenOverrides = {}, publicLetter, person = {}, activities, papers = {}, screeningItems = [], citationAuthors = fixtureCitationAuthors, citationError = false, beforeCitation, bibliography = { results: { bindings: [] } } } = {}) {
   const origin = production ? 'https://letter.example.org' : 'http://localhost:8766';
   const config = configFromEnv({ APP_ORIGIN: origin, ORCID_ENV: production ? 'production' : 'sandbox',
     ORCID_CLIENT_ID: 'test-client', ORCID_CLIENT_SECRET: 'test-secret', TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32), PUBLIC_LETTER_URL: publicLetter });
@@ -24,6 +24,11 @@ function setup(t, { production = false, providerError = false, evidenceError = f
         refresh_token: 'sensitive-test-refresh', scope: '/authenticate', token_type: 'bearer', ...tokenOverrides });
     }
     if (evidenceError) throw new Error('Provider timed out');
+    if (url.startsWith('https://api.crossref.org/works?')) {
+      assert.equal(options.headers.Authorization, undefined, 'Never forward an ORCID token to Crossref');
+      assert.equal(new URL(url).searchParams.get('filter'), 'orcid:' + ORCID, 'Screen the authenticated identity');
+      return Response.json({ status: 'ok', message: { items: screeningItems, 'total-results': screeningItems.length } });
+    }
     if (url.startsWith('https://sparql.dblp.org/sparql?')) {
       assert.equal(options.headers.Authorization, undefined, 'Never forward an ORCID token to DBLP');
       assert.ok(new URL(url).searchParams.get('query').includes('https://orcid.org/' + ORCID));
@@ -270,7 +275,7 @@ test('curated bibliography discovery covers works beyond ORCID and joins coautho
   const namesakes = network.candidates.filter(c => c.name === 'Alex Morgan');
   assert.equal(namesakes.length, 2); assert.notEqual(namesakes[0].id, namesakes[1].id);
   assert.deepEqual(namesakes.map(c => c.papers.length).sort(), [7, 8]);
-  assert.ok(!x.calls.some(c => c.url.startsWith('https://api.crossref.org/')), 'Do not fetch one DOI at a time when a bibliography is available');
+  assert.ok(!x.calls.some(c => c.url.startsWith('https://api.crossref.org/works/')), 'Do not fetch one DOI at a time when a bibliography is available');
   const invitation = await (await x.post('invitations', { candidateId: network.candidates[0].id }, x.user)).json();
   assert.equal(invitation.invitation.papers.length, 15);
 });
@@ -467,14 +472,40 @@ test('request identity comes from OAuth; duplicate submissions produce one pendi
   const rows = x.db.prepare('SELECT * FROM signatures').all();
   assert.equal(rows.length, 1); assert.equal(rows[0].subject, `sandbox:${ORCID}`);
   assert.equal(rows[0].status, 'pending_review'); assert.equal(rows[0].letter_text, letter.text);
-  assert.equal(JSON.parse(rows[0].evidence).status, 'retrieved');
+  assert.equal(JSON.parse(rows[0].evidence).screening.reason, 'no_publication_match');
   assert.deepEqual(await (await x.req('signatures')).json(), []);
 });
 test('unavailable public research data leaves the request pending for manual review', async t => {
   const x = setup(t, { evidenceError: true }); const logged = await x.login();
   assert.equal((await x.post('signatures', x.payload, logged)).status, 201);
   const row = x.db.prepare('SELECT status, evidence FROM signatures').get();
-  assert.equal(row.status, 'pending_review'); assert.equal(JSON.parse(row.evidence).status, 'unavailable');
+  assert.equal(row.status, 'pending_review'); assert.equal(JSON.parse(row.evidence).screening.reason, 'lookup_unavailable');
+});
+test('clear publication matches publish immediately and retries cannot restore a withdrawn signature', async t => {
+  const x = setup(t, { production: true, screeningItems: [{ DOI: '10.1234/fixture',
+    author: [{ given: 'Test', family: 'Researcher', ORCID: 'https://orcid.org/' + ORCID }] }] });
+  const logged = await x.login();
+  const response = await x.post('signatures', { ...x.payload, email: 'private@example.org', updates: true }, logged);
+  assert.equal(response.status, 201); assert.equal((await response.json()).signature.status, 'approved');
+  const row = x.db.prepare('SELECT * FROM signatures').get();
+  assert.equal(row.reviewed_at, 1000000); assert.equal(row.letter_text, letter.text);
+  assert.equal(JSON.parse(row.evidence).screening.reason, 'publication_match');
+  assert.deepEqual(await (await x.req('signatures')).json(), [{ name: 'Test Researcher', affiliation: 'Example Lab', orcid: ORCID, citations: null }]);
+  const calls = x.calls.length;
+  assert.equal((await x.post('signatures', x.payload, logged)).status, 200);
+  assert.equal(x.calls.length, calls, 'Duplicate submissions reuse the saved screening');
+  x.db.prepare("UPDATE signatures SET status='withdrawn'").run();
+  assert.equal((await (await x.post('signatures', x.payload, logged)).json()).signature.status, 'withdrawn');
+  assert.deepEqual(await (await x.req('signatures')).json(), []);
+  assert.equal(x.db.prepare('SELECT COUNT(*) AS n FROM signatures').get().n, 1);
+});
+test('a matching publication cannot approve a signature submitted under a different name', async t => {
+  const x = setup(t, { production: true, screeningItems: [{ DOI: '10.1234/fixture',
+    author: [{ given: 'Test', family: 'Researcher', ORCID }] }] });
+  const logged = await x.login();
+  await x.post('signatures', { ...x.payload, name: 'Somebody Else', status: 'approved' }, logged);
+  assert.equal(x.db.prepare('SELECT status FROM signatures').get().status, 'pending_review');
+  assert.deepEqual(await (await x.req('signatures')).json(), []);
 });
 test('public list contains only approved production signatures and no private fields', async t => {
   const x = setup(t, { production: true }); const logged = await x.login();

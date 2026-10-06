@@ -10,7 +10,7 @@
     "build": "node build.mjs",
     "build:science": "node build-science.mjs",
     "db:local": "wrangler d1 migrations apply DB --local",
-    "test": "node --test app.test.mjs",
+    "test": "node --test app.test.mjs screening.test.mjs",
     "test:worker": "node build.mjs && node --test worker.test.mjs",
     "check": "node build.mjs && wrangler deploy --dry-run --outdir /private/tmp/letter-worker-build"
   },
