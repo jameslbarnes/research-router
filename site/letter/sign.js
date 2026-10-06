@@ -184,7 +184,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<label class="sign-check"><input name="updates" type="checkbox"><span>Email me about organising collective bargaining.</span></label>' +
       '<p class="sign-small">Your name, affiliation and ORCID iD will appear publicly after the research record check. Your email will stay private.</p>' +
       (referral ? '<p class="sign-small">When you sign, we’ll record the invitation link that brought you here.</p>' : '') +
-      '<label class="sign-check"><input name="consent" type="checkbox" required><span>I agree to the letter and want my name added.</span></label>' +
+      '<label class="sign-check"><input name="consent" type="checkbox" required><span>I agree to the letter, have updated my training permissions and want my name added.</span></label>' +
       '<button class="sign-submit" type="submit">Submit my signature</button></form>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p>';
     root.prepend(identity()); environment();
