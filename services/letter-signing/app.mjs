@@ -1,7 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto';
 import { createInvitations } from './invitations.mjs';
 import { createSignatories } from './signatories.mjs';
-import { screenSignature } from './screening.mjs';
 import { signatureRowFor } from './signature-records.mjs';
 
 const API = '/letter/api';
@@ -368,15 +367,16 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     if (data.updates && !email) return error(400, 'Enter an email address to receive organising updates.');
     const existing = await signature(user.subject);
     if (existing) return json({ signature: existing });
-    const screening = await screenSignature({ orcid: user.orcid, name }, { fetchImpl, providerJSON, now });
-    const evidence = { profile: `${config.issuer}/${user.orcid}`, screening };
+    const submittedAt = now();
+    const evidence = { profile: `${config.issuer}/${user.orcid}`,
+      publication: { method: 'orcid-authentication-v1', published_at: submittedAt } };
     // The authenticated session supplies the identity. Client-supplied ORCID values are ignored.
     // A unique key makes a retried or concurrent submission idempotent.
     const inserted = await db.prepare(`INSERT OR IGNORE INTO signatures
       (subject, letter_hash, letter_text, name, affiliation, email, updates, status, evidence, submitted_at, reviewed_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING subject`)
-      .get(user.subject, letter.hash, letter.text, name, affiliation, email, Number(data.updates), screening.status,
-        JSON.stringify(evidence), now(), screening.status === 'approved' ? screening.checked_at : null);
+      .get(user.subject, letter.hash, letter.text, name, affiliation, email, Number(data.updates), 'approved',
+        JSON.stringify(evidence), submittedAt, null);
     if (inserted) {
       // An optional referral must never make an otherwise successful signature fail.
       try { await invitations.attribute(user.subject, data.via); } catch { /* The signature is safely stored. */ }

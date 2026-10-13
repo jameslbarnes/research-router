@@ -6,9 +6,24 @@
 <script src="/letter/invitations.js"></script><script>
 (async () => {
   const results = document.querySelector('#results'), summary = document.querySelector('#summary'); let passed = 0, failed = 0;
-  // Fixture I/O resolves in microtasks. Avoid Safari background-tab timer throttling.
-  const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
+  // Response.json() may settle on a browser task, not only a microtask. A
+  // MessageChannel yields to that work without background-tab timer throttling.
+  const flush = async () => {
+    await new Promise(resolve => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); };
+      channel.port2.postMessage(null);
+    });
+    for (let i = 0; i < 40; i++) await Promise.resolve();
+  };
   const check = (condition, message) => { if (!condition) throw new Error(message); };
+  const until = async (condition, message) => {
+    const deadline = performance.now() + 3000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error(message);
+      await flush();
+    }
+  };
   async function test(name, run) { try { await run(); passed++; const li = document.createElement('li'); li.className='pass'; li.textContent='PASS · '+name; results.append(li); }
     catch (error) { failed++; const li=document.createElement('li'); li.className='fail'; li.textContent='FAIL · '+name+' · '+error.message;results.append(li); } }
   let events, panel, share, copy, lookup, releaseCitations, releasePreparation;
@@ -174,24 +189,25 @@
     };
     try {
       await new Promise((resolve,reject)=>{ const script=document.createElement('script'); script.src='/letter/sign.js'; script.onload=resolve; script.onerror=reject; document.body.append(script); });
-      await flush();
+      await until(() => root.querySelector('form') && calls.includes('coauthors'), 'connection did not show the form and start discovery');
       check(calls.filter(p=>p==='coauthors').length===1,'connection did not start discovery');
       check(!calls.includes('signatures')&&!calls.includes('invitations'),'connection signed or prepared an invitation');
       const form=root.querySelector('form'); check(Boolean(form),'slow lookup blocked the signing form');
       form.elements.consent.checked=true;
-      form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
+      form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      await until(() => root.querySelector('.sign-result-note') && root.querySelector('.invite-copy'), 'signature did not complete while discovery was pending');
       check(root.querySelector('.sign-result-note').textContent==='Thank you for signing the letter.','signature was blocked on discovery');
       check(root.querySelector('h2').textContent==='Test signature saved.','sandbox signature claimed to be public');
       check(!root.querySelector('.invite-copy').disabled,'general invitation blocked on discovery');
-      releasePapers(); await flush();
+      releasePapers(); await until(() => calls.includes('coauthors/citations'), 'citation lookup did not start');
       check(root.querySelector('.invite-prompt').textContent.includes('a collaborator'),'partial lookup removed generic prompt');
-      releaseCounts(); await flush();
+      releaseCounts(); await until(() => root.querySelector('.invite-prompt')?.textContent.includes('Maya Chen'), 'ranked coauthor did not arrive');
       check(root.querySelector('.invite-prompt').textContent==='Would you invite Maya Chen to read the letter?','late ranked coauthor missing');
       check(calls.filter(p=>p==='coauthors').length===1,'signing restarted discovery');
     } finally { releasePapers(); releaseCounts(); await flush(); window.fetch=originalFetch; document.body.classList.remove('signing-companion'); }
   });
-  await test('Automatic approval refreshes the public list; held signatures show a private review result', async () => {
-    const frame=document.createElement('iframe'); frame.title='Automatic screening checks'; document.body.append(frame);
+  await test('Signing refreshes the public list; legacy nonpublic signatures stay private', async () => {
+    const frame=document.createElement('iframe'); frame.title='Signature publication checks'; document.body.append(frame);
     try {
       for (const outcome of ['approved','pending_review']) {
         await new Promise(resolve=>{ frame.onload=resolve; frame.srcdoc='<body class="signing-companion"><section data-signing></section><section data-signatories><span data-signatory-count>0 signatures</span><div data-signatory-list></div></section></body>'; });
@@ -208,18 +224,21 @@
           throw new Error('Unexpected screening fixture request '+path);
         };
         await new Promise((resolve,reject)=>{ const script=frame.contentDocument.createElement('script'); script.src='/letter/sign.js'; script.onload=resolve; script.onerror=reject; frame.contentDocument.body.append(script); });
-        await flush();
-        const doc=frame.contentDocument, form=doc.querySelector('form'); check(Boolean(form),'signing form missing');
+        const doc=frame.contentDocument;
+        await until(() => doc.querySelector('form') && publicReads===1, 'signing form or initial public list missing');
+        const form=doc.querySelector('form');
         form.elements.consent.checked=true;
-        form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await flush();
-        check(doc.querySelector('h2').textContent===(outcome==='approved'?'Your name has been added.':'Your signature is awaiting review.'),'wrong screening result');
+        form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        await until(() => doc.querySelector('.sign-result-note'), 'signature result missing');
+        check(doc.querySelector('h2').textContent===(outcome==='approved'?'Your name has been added.':'Your signature is saved.'),'wrong publication result');
         if(outcome==='approved') {
+          await until(() => doc.querySelector('[data-signatory-list]').textContent.includes(signer.name), 'published signature did not appear');
           check(publicReads===2,'public list did not refresh after automatic approval');
           check(doc.querySelector('[data-signatory-list]').textContent.includes(signer.name),'approved name missing until reload');
           check(doc.querySelector('[data-signatory-count]').textContent==='1 signature','approved signer count stale');
         } else {
           check(!doc.querySelector('[data-signatory-list]').textContent.includes(signer.name),'held signature leaked publicly');
-          check(doc.querySelector('.sign-result-note').textContent.includes('Your signature is saved.'),'held signature not acknowledged');
+          check(doc.querySelector('.sign-result-note').textContent.includes('not currently included'),'nonpublic signature status is unclear');
         }
       }
     } finally { frame.remove(); }
@@ -235,8 +254,8 @@
           return Response.json(approved);
         };
         await new Promise((resolve,reject)=>{ const script=frame.contentDocument.createElement('script'); script.src='/letter/sign.js'; script.onload=resolve; script.onerror=reject; frame.contentDocument.body.append(script); });
-        await flush();
         const doc=frame.contentDocument;
+        await until(() => doc.querySelector('.signature-name'), 'public signature list did not render');
         check([...doc.querySelectorAll('.signature-name')].map(n=>n.textContent).join('|')===expectedNames.join('|'),'Incorrect signer ordering or duplicate');
         check(doc.querySelector('[data-signatory-context]').textContent===expectedContext,'Subtitle names or count incorrect');
         check(!doc.querySelector('[data-signatory-context] img'),'Signer name interpreted as HTML');

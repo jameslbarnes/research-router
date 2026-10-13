@@ -1,6 +1,6 @@
 # ORCID signing on Cloudflare
 
-This Worker requires ORCID authentication before accepting a signature request. It uses Cloudflare D1. New signatures are screened automatically against publisher records in Crossref. Clear ORCID and author-name matches appear immediately; unmatched, ambiguous and unavailable records stay private for operator review. ORCID authentication confirms control of the record, not academic credentials.
+This Worker requires ORCID authentication before accepting a signature request. It uses Cloudflare D1. New signatures appear immediately after the authenticated researcher confirms and submits the form. Publication records and lookup failures never hold a signature for approval. ORCID authentication confirms control of the record, not academic credentials.
 
 The letter uses the repository's existing GitHub Pages site, published from the root of `main`. Read [the published letter](https://bargainingforourminds.org/science/) or open [the signing page](https://bargaining-letter-signing.jameslbarnes.workers.dev/letter/sign/).
 
@@ -39,7 +39,7 @@ Use separate clients for sandbox and production. The sandbox is a separate ORCID
 | Field | Value |
 | --- | --- |
 | Application name | Bargaining For Our Minds |
-| Description | Connect an ORCID iD when signing an open letter from scientists to frontier AI labs. We check public publication records to confirm a research connection. |
+| Description | Connect an ORCID iD when signing an open letter from scientists to frontier AI labs. Public research records help suggest coauthors to invite. |
 | Scope | `/authenticate` |
 | Local sandbox callback | `http://localhost:8766/letter/api/auth/orcid/callback` |
 | Production application website | `https://bargainingforourminds.org/science/` |
@@ -71,7 +71,7 @@ The build copies an explicit list of signing assets into the ignored `public/` d
 
 The build extracts the exact letter from `site/letter/index.html`, excludes archived HTML comments, and hashes the title and paragraphs. Rebuild and deploy the Worker alongside each letter revision. The inline form compares the displayed title and paragraphs with the API's current letter before allowing sign-in or signing. A mismatch shows a reload prompt. The server also rejects submissions for an outdated letter hash. Signatures remain visible and recognised through copy edits, so existing signers do not need to sign again. Each record retains the exact text and hash originally signed. If a person has multiple historical records, the latest record controls their public status; an older approval cannot override a later withdrawal or held request.
 
-## Automatic screening and exceptions
+## Immediate publication and withdrawals
 
 `npm run db:local` initialises only the local database. Use these commands from this directory:
 
@@ -84,17 +84,15 @@ node review.mjs withdraw ORCID LETTER_HASH
 
 They operate on the local sandbox by default. `--remote` selects the explicitly configured production environment. A remote approval or withdrawal additionally requires `--confirm-publish` because it changes the public list. Do not run those commands during an unpublished design review.
 
-On submission, `screening.mjs` queries [Crossref publisher metadata](https://www.crossref.org/documentation/retrieve-metadata/rest-api/) using the authenticated ORCID. It checks up to 20 publication records within a four-second request deadline. Automatic approval requires a DOI-bearing record with exactly one author carrying that ORCID and a compatible name. Case, accents, omitted middle names and matching middle initials are accepted. Conflicting names, ambiguous authorship, missing records and provider failures stay pending. A citation count is never required. This establishes a research connection; it does not verify the entered affiliation or award an academic credential. Browser-supplied ORCID values and approval status are ignored.
+On submission, the server publishes the signature using the ORCID identity from the authenticated session. The explicit consent checkbox, current-letter check, CSRF and origin checks remain required. Browser-supplied identity and status fields are ignored. No publication provider is called while saving a signature. ORCID authenticates control of the record; the entered name, affiliation and academic credentials are not independently verified.
 
-The private evidence field records the screening method, time, reason and up to three supporting DOI links. Crossref's publisher-reported `authenticated-orcid` flag is retained as evidence but is not required, since publishers do not consistently supply it. Only the public ORCID is sent to Crossref. Contact emails and ORCID access tokens stay private. A duplicate submission reuses the saved result, including a withdrawal.
+The private evidence field records the ORCID profile and publication policy and time. No human review is implied by the internal `approved` status. Duplicate submissions preserve the existing record, including withdrawals and any previous operator decision. Public research lookups still support coauthor discovery and citation ordering; their results do not determine whether a new signature is published.
 
-For held requests, follow the stored ORCID profile and supporting records, then use `approve` or `withdraw` above. A missing match can reflect incomplete coverage or a name variation; it is not a finding of misconduct. No notification email is sent and no review turnaround is promised.
-
-To apply the same checks to each signer’s latest pending signature, run `node screen-pending.mjs --remote --confirm-publish`. It preserves prior evidence and the original signed text, and skips withdrawn, superseded or manually reviewed signatures. It prints aggregate outcomes without names or private contact information. Provider failures remain pending and can be retried by running the command again.
+To publish existing automatic holds under the new policy, run `node publish-pending.mjs --remote --confirm-publish`. It updates only each production signer's latest pending record with no recorded operator review. It preserves the original signed text, submission time and existing evidence, and skips withdrawals, superseded signatures, sandbox records and prior operator decisions. Re-running it has no effect on records already published. The old `screen-pending.mjs` command belongs to the retired publication-screening policy and should not be used to process the queue.
 
 Private contact emails are self-supplied and have not been email-verified. The organising checkbox records a preference; this integration sends no email and does not subscribe anybody to a mailing service. An invitation sender or mailing-list integration will need its own verification and delivery flow.
 
-The existing `site/letter/signatories.json` remains unchanged. The main letter and selected design add approved production records from the API when available. Clear automatic matches appear on submission; exceptions remain private until approved. The browser refreshes the public list after a successful approval.
+The existing `site/letter/signatories.json` remains unchanged. The main letter and selected design add approved production records from the API when available. New signatures appear on submission. The browser refreshes the public list after a successful signature.
 
 Public signers are ordered by total citations in OpenAlex, using a unique primary ORCID match and a compatible name. Each available count links to its source. Unknown counts follow known counts; ties retain signing order. Static and ORCID signatures with the same name and affiliation are counted once. The subtitle gains a total once three people have signed. When at least two have matched citation records, it names the two highest-cited signers and gives the number of others. Featured names come from the current public list.
 

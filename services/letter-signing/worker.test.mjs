@@ -7,7 +7,7 @@ import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { fixtureActivities, fixturePapers, fixtureCitationAuthors, fixtureBibliography } from './invitations.fixtures.mjs';
 
-test('Cloudflare runtime screens signatures, keeps sandbox data private and preserves idempotency', async t => {
+test('Cloudflare runtime publishes authenticated signatures, keeps sandbox data private and preserves idempotency', async t => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('./worker.mjs', import.meta.url))],
     bundle: true, write: false, format: 'esm', platform: 'neutral', external: ['node:*'] });
   const origin = 'http://localhost:8766';
@@ -33,9 +33,7 @@ test('Cloudflare runtime screens signatures, keeps sandbox data private and pres
       }
       if (new URL(request.url).hostname === 'api.crossref.org') {
         assert.equal(request.headers.get('authorization'), null);
-        if (new URL(request.url).pathname === '/works') return Response.json({ status: 'ok', message: {
-          items: [{ DOI: '10.1234/fixture', author: [{ given: 'Fixture', family: 'Researcher', ORCID: 'https://orcid.org/0000-0002-1825-0097' }] }], 'total-results': 1,
-        } });
+        assert.notEqual(new URL(request.url).pathname, '/works', 'Signing must not screen the ORCID against publications');
         const paper = fixturePapers[decodeURIComponent(new URL(request.url).pathname.split('/works/')[1])];
         return paper ? Response.json(paper) : new Response('Not found', { status: 404 });
       }
@@ -86,7 +84,7 @@ test('Cloudflare runtime screens signatures, keeps sandbox data private and pres
     }) });
   const submitted = await submit(); assert.equal(submitted.status, 201);
   assert.equal((await submitted.json()).signature.status, 'approved');
-  assert.equal(JSON.parse((await db.prepare('SELECT evidence FROM signatures').first()).evidence).screening.reason, 'publication_match');
+  assert.equal(JSON.parse((await db.prepare('SELECT evidence FROM signatures').first()).evidence).publication.method, 'orcid-authentication-v1');
   assert.equal((await submit()).status, 200);
   assert.equal((await db.prepare('SELECT count(*) AS n FROM signatures').first()).n, 1);
   const publicList = await call('signatures', { headers: { Origin: 'https://example.github.io' } });

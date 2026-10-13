@@ -465,54 +465,54 @@ test('signing needs an authenticated session, CSRF token, current text and expli
   assert.equal((await x.post('signatures', { ...x.payload, letterHash: 'outdated' }, logged)).status, 409);
   assert.equal(x.db.prepare('SELECT count(*) AS n FROM signatures').get().n, 0);
 });
-test('request identity comes from OAuth; duplicate submissions produce one pending signature', async t => {
+test('request identity comes from OAuth; duplicate submissions produce one published signature', async t => {
   const x = setup(t); const logged = await x.login();
-  const payload = { ...x.payload, orcid: 'forged-id', subject: 'forged-subject', status: 'approved' };
+  const payload = { ...x.payload, orcid: 'forged-id', subject: 'forged-subject', status: 'pending_review' };
   assert.equal((await x.post('signatures', payload, logged)).status, 201);
   assert.equal((await x.post('signatures', payload, logged)).status, 200);
   const rows = x.db.prepare('SELECT * FROM signatures').all();
   assert.equal(rows.length, 1); assert.equal(rows[0].subject, `sandbox:${ORCID}`);
-  assert.equal(rows[0].status, 'pending_review'); assert.equal(rows[0].letter_text, letter.text);
-  assert.equal(JSON.parse(rows[0].evidence).screening.reason, 'no_publication_match');
+  assert.equal(rows[0].status, 'approved'); assert.equal(rows[0].letter_text, letter.text);
+  assert.equal(JSON.parse(rows[0].evidence).publication.method, 'orcid-authentication-v1');
   assert.deepEqual(await (await x.req('signatures')).json(), []);
 });
-test('unavailable public research data leaves the request pending for manual review', async t => {
-  const x = setup(t, { evidenceError: true }); const logged = await x.login();
+test('unavailable research data cannot delay or hide a production signature', async t => {
+  const x = setup(t, { production: true, evidenceError: true }); const logged = await x.login();
+  const calls = x.calls.length;
   assert.equal((await x.post('signatures', x.payload, logged)).status, 201);
   const row = x.db.prepare('SELECT status, evidence FROM signatures').get();
-  assert.equal(row.status, 'pending_review'); assert.equal(JSON.parse(row.evidence).screening.reason, 'lookup_unavailable');
+  assert.equal(row.status, 'approved'); assert.equal(JSON.parse(row.evidence).publication.method, 'orcid-authentication-v1');
+  assert.equal(x.calls.length, calls, 'Signing must not wait for any external publication lookup');
+  assert.deepEqual(await (await x.req('signatures')).json(), [{ name: 'Test Researcher', affiliation: 'Example Lab', orcid: ORCID, citations: null }]);
 });
-test('clear publication matches publish immediately and retries cannot restore a withdrawn signature', async t => {
-  const x = setup(t, { production: true, screeningItems: [{ DOI: '10.1234/fixture',
-    author: [{ given: 'Test', family: 'Researcher', ORCID: 'https://orcid.org/' + ORCID }] }] });
+test('an empty publication record publishes immediately and retries cannot restore a withdrawn signature', async t => {
+  const x = setup(t, { production: true });
   const logged = await x.login();
   const response = await x.post('signatures', { ...x.payload, email: 'private@example.org', updates: true }, logged);
   assert.equal(response.status, 201); assert.equal((await response.json()).signature.status, 'approved');
   const row = x.db.prepare('SELECT * FROM signatures').get();
-  assert.equal(row.reviewed_at, 1000000); assert.equal(row.letter_text, letter.text);
-  assert.equal(JSON.parse(row.evidence).screening.reason, 'publication_match');
+  assert.equal(row.reviewed_at, null); assert.equal(row.letter_text, letter.text);
+  assert.equal(JSON.parse(row.evidence).publication.published_at, 1000000);
   assert.deepEqual(await (await x.req('signatures')).json(), [{ name: 'Test Researcher', affiliation: 'Example Lab', orcid: ORCID, citations: null }]);
   const calls = x.calls.length;
   assert.equal((await x.post('signatures', x.payload, logged)).status, 200);
-  assert.equal(x.calls.length, calls, 'Duplicate submissions reuse the saved screening');
+  assert.equal(x.calls.length, calls, 'Duplicate submissions reuse the saved signature');
   x.db.prepare("UPDATE signatures SET status='withdrawn'").run();
   assert.equal((await (await x.post('signatures', x.payload, logged)).json()).signature.status, 'withdrawn');
   assert.deepEqual(await (await x.req('signatures')).json(), []);
   assert.equal(x.db.prepare('SELECT COUNT(*) AS n FROM signatures').get().n, 1);
 });
-test('a matching publication cannot approve a signature submitted under a different name', async t => {
+test('the editable public name is not gated by a publication-name match', async t => {
   const x = setup(t, { production: true, screeningItems: [{ DOI: '10.1234/fixture',
     author: [{ given: 'Test', family: 'Researcher', ORCID }] }] });
   const logged = await x.login();
   await x.post('signatures', { ...x.payload, name: 'Somebody Else', status: 'approved' }, logged);
-  assert.equal(x.db.prepare('SELECT status FROM signatures').get().status, 'pending_review');
-  assert.deepEqual(await (await x.req('signatures')).json(), []);
+  assert.equal(x.db.prepare('SELECT status FROM signatures').get().status, 'approved');
+  assert.deepEqual(await (await x.req('signatures')).json(), [{ name: 'Somebody Else', affiliation: 'Example Lab', orcid: ORCID, citations: null }]);
 });
 test('public list contains only approved production signatures and no private fields', async t => {
   const x = setup(t, { production: true }); const logged = await x.login();
   await x.post('signatures', { ...x.payload, email: 'private@example.org', updates: true }, logged);
-  assert.deepEqual(await (await x.req('signatures')).json(), []);
-  x.db.prepare("UPDATE signatures SET status='approved'").run();
   const visible = await (await x.req('signatures')).json();
   assert.deepEqual(visible, [{ name: 'Test Researcher', affiliation: 'Example Lab', orcid: ORCID, citations: null }]);
 });
