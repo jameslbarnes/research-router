@@ -1,4 +1,4 @@
-/* ORCID is required for new signature requests. OAuth credentials and tokens stay
+/* Verified identity is required for new signatures. OAuth credentials and tokens stay
    in the Cloudflare Worker. These earlier constants remain unchanged and unused. */
 var SIGN_ENDPOINT = "";
 var SIGN_EMAIL = "barnes.james@gmail.com";
@@ -44,7 +44,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   let coauthorLookup = null, lookupOrcid = null;
   function resetLookup() { coauthorLookup?.cancel(); coauthorLookup = null; lookupOrcid = null; }
   function startLookup() {
-    if (!window.LetterInvitations || current.signature?.status === 'withdrawn') return;
+    if (!window.LetterInvitations || !current.user.orcid || current.signature?.status === 'withdrawn') return;
     if (lookupOrcid !== current.user.orcid) {
       resetLookup(); lookupOrcid = current.user.orcid;
       coauthorLookup = window.LetterInvitations.createLookup(request);
@@ -56,6 +56,8 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   const proof = value => typeof value === 'string' && /^[\w-]{43}$/.test(value);
   const base64url = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
   const returnParams = new URLSearchParams(location.hash.slice(1));
+  let emailToken = !remoteInline && returnParams.has('email-token') ? returnParams.get('email-token') : null;
+  if (emailToken !== null) history.replaceState(null, '', location.pathname + location.search);
   const hasReturn = remoteInline && returnParams.has('sign-ticket');
   if (hasReturn) history.replaceState(null, '', location.pathname + location.search + '#sign');
   let bridge = null;
@@ -85,7 +87,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     } catch (_) { throw new Error('The signing service could not be reached. Check your connection and try again.'); }
     let data;
     try { data = await response.json(); }
-    catch (_) { throw new Error('ORCID signing is not available yet. Please try again later.'); }
+    catch (_) { throw new Error('Signing is not available yet. Please try again later.'); }
     if (!response.ok) throw new Error(data.error || 'Your request could not be completed. Please try again.');
     return data;
   }
@@ -134,16 +136,19 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
   function environment() {
     if (current?.environment === 'sandbox') {
       const note = document.createElement('p'); note.className = 'sign-environment';
-      note.textContent = 'ORCID sandbox · Test signatures stay private.'; root.prepend(note);
+      note.textContent = 'Signing sandbox · Test signatures stay private.'; root.prepend(note);
     }
   }
   function identity() {
     const box = document.createElement('div'); box.className = 'orcid-identity';
-    const label = document.createElement('p'); label.className = 'sign-small'; label.textContent = 'Connected with ORCID';
+    const emailIdentity = current.user.method === 'email';
+    const label = document.createElement('p'); label.className = 'sign-small'; label.textContent = emailIdentity ? 'Academic email verified' : 'Connected with ORCID';
     const record = document.createElement('div'); record.className = 'orcid-record';
     const image = document.createElement('img'); image.src = icon; image.alt = '';
     const link = document.createElement('a'); link.href = current.user.url; link.textContent = current.user.url;
-    link.target = '_blank'; link.rel = 'noopener noreferrer'; record.append(image, link);
+    link.target = '_blank'; link.rel = 'noopener noreferrer';
+    if (emailIdentity) record.textContent = current.user.email;
+    else record.append(image, link);
     const out = document.createElement('button'); out.type = 'button'; out.className = 'sign-out'; out.textContent = 'Sign out';
     out.addEventListener('click', async () => {
       resetLookup();
@@ -154,10 +159,12 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     box.append(label, record, out); return box;
   }
   function showLogin(message) {
-    root.innerHTML = '<p>Sign in with ORCID to connect your name to your research record. You’ll review your details before submitting your signature. We’ll look up your public coauthors while you review.</p>' +
+    root.innerHTML = '<p>Sign with your ORCID iD or a verified email address at an academic or research institution.</p>' +
       '<button class="orcid-button" type="button"><img alt="" width="24" height="24"><span>Continue with ORCID</span></button>' +
-      '<p class="sign-help">ORCID is a free researcher identifier. You can create an account during sign-in.</p>' +
-      '<p class="sign-small">Your name appears on the letter as soon as you submit your signature.</p>' +
+      '<p class="sign-help">Connect your research record. No email address is required.</p>' +
+      '<div class="sign-alternative"><button class="orcid-button" data-email-login type="button">Continue with academic email</button>' +
+      '<p class="sign-help">We’ll send a code to your institutional email. Your address stays private.</p></div>' +
+      '<p class="sign-small">You’ll review your details and confirm the letter before your name is published.</p>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p><button class="sign-retry" type="button" hidden>Try again</button>';
     environment();
     const button = root.querySelector('.orcid-button'); button.querySelector('img').src = icon;
@@ -167,22 +174,65 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       try { await startLogin(); }
       catch (err) { status(err.message, true); button.disabled = false; }
     });
+    const emailButton = root.querySelector('[data-email-login]');
+    emailButton.disabled = !current?.emailConfigured;
+    emailButton.addEventListener('click', () => showEmail());
+    if (!current?.emailConfigured) emailButton.parentElement.querySelector('.sign-help').textContent = 'Academic email sign-in is being set up. You can use ORCID now.';
     if (message) status(message, true);
     else if (!current?.configured) status('ORCID signing is being set up. Please try again later.');
     if (!current?.configured) {
       const retry = root.querySelector('.sign-retry'); retry.hidden = false; retry.addEventListener('click', load);
     }
   }
+  function showEmail() {
+    root.innerHTML = '<p>Use an email address at your academic or research institution. We?ll send you a confirmation link.</p>' +
+      '<form class="sign-fields" data-email-start><div class="sign-field"><label for="academic-email">Academic email address</label>' +
+      '<input id="academic-email" name="email" type="email" autocomplete="email" maxlength="254" required></div>' +
+      '<button class="sign-submit" type="submit">Send confirmation link</button></form>' +
+      '<p class="sign-small sign-help">We check the institutional domain against the Research Organization Registry. If we can?t recognise your institution, you can still use ORCID. Your email will never appear on the public letter.</p>' +
+      '<p data-status class="sign-status" role="status" aria-live="polite"></p><button class="sign-retry" data-email-back type="button">Back to sign-in options</button>';
+    environment();
+    const form = root.querySelector('form');
+    root.querySelector('[data-email-back]').addEventListener('click', () => showLogin());
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); const button = form.querySelector('button'); button.disabled = true; status('Checking your institution and sending a link?');
+      try {
+        const email = form.elements.email.value.trim();
+        await request('auth/email/start', {method: 'POST', body: JSON.stringify({email})});
+        form.hidden = true; status('Check your inbox at ' + email + '. Follow the confirmation link within ten minutes to review and sign the letter. Check your spam folder if it hasn?t arrived.');
+        const again = document.createElement('button'); again.type = 'button'; again.className = 'sign-retry'; again.textContent = 'Use another address or request a new link';
+        again.addEventListener('click', showEmail); root.append(again);
+      } catch(err) {status(err.message, true); button.disabled = false;}
+    });
+    form.elements.email.focus();
+  }
+  function showEmailConfirmation() {
+    root.innerHTML = '<p>Confirm your email address to continue. You?ll review your details and the letter before submitting your signature.</p>' +
+      '<button class="sign-submit" type="button">Confirm email and continue</button><p data-status class="sign-status" role="status" aria-live="polite"></p>';
+    const button = root.querySelector('button');
+    button.addEventListener('click', async () => {
+      button.disabled = true; status('Confirming your email?');
+      try {
+        await request('auth/email/verify', {method: 'POST', body: JSON.stringify({token: emailToken})});
+        emailToken = null; resetLookup(); await load();
+      } catch(err) {
+        status(err.message, true);
+        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'sign-retry'; retry.textContent = 'Request a new confirmation link';
+        retry.addEventListener('click', () => {emailToken = null; showEmail();}); root.append(retry);
+      }
+    });
+  }
   function showForm() {
+    const emailIdentity = current.user.method === 'email';
     root.innerHTML = '<p>Choose how your name will appear on the letter.</p>' +
       (inline ? '' : '<details class="sign-letter"><summary>Read the letter you are signing</summary><div class="sign-letter-body"></div></details>') +
-      '<details class="sign-profile"><summary>Your public ORCID record</summary><div data-profile><p class="sign-small">Loading your research details…</p></div></details>' +
+      (emailIdentity ? '' : '<details class="sign-profile"><summary>Your public ORCID record</summary><div data-profile><p class="sign-small">Loading your research details…</p></div></details>') +
       '<form class="sign-fields">' +
       '<div class="sign-field"><label for="sign-name">Name</label><input id="sign-name" name="name" autocomplete="name" maxlength="160" required></div>' +
       '<div class="sign-field"><label for="sign-affiliation">Affiliation or field</label><input id="sign-affiliation" name="affiliation" autocomplete="organization" maxlength="240"><p data-aff-source class="sign-small"></p></div>' +
-      '<div class="sign-field"><label for="sign-email">Email for organising updates (optional)</label><input id="sign-email" name="email" type="email" autocomplete="email" maxlength="254"></div>' +
+      '<div class="sign-field"><label for="sign-email">' + (emailIdentity ? 'Verified academic email' : 'Email for organising updates (optional)') + '</label><input id="sign-email" name="email" type="email" autocomplete="email" maxlength="254"' + (emailIdentity ? ' readonly' : '') + '></div>' +
       '<label class="sign-check"><input name="updates" type="checkbox"><span>Email me about organising collective bargaining.</span></label>' +
-      '<p class="sign-small">Your name, affiliation and ORCID iD will appear publicly when you submit. Your email will stay private.</p>' +
+      '<p class="sign-small">Your name, affiliation' + (emailIdentity ? '' : ' and ORCID iD') + ' will appear publicly when you submit. Your email will stay private.</p>' +
       (referral ? '<p class="sign-small">When you sign, we’ll record the invitation link that brought you here.</p>' : '') +
       '<label class="sign-check"><input name="consent" type="checkbox" required><span>I agree to the letter, have updated my training permissions and want my name added.</span></label>' +
       '<button class="sign-submit" type="submit">Submit my signature</button></form>' +
@@ -195,14 +245,15 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     }
     const form = root.querySelector('form'); form.elements.name.value = current.user.name || '';
     for (const field of ['name', 'affiliation']) form.elements[field].addEventListener('input', () => { form.elements[field].dataset.edited = 'true'; });
-    fillProfile(form);
+    if (emailIdentity) {form.elements.email.value = current.user.email; form.elements.affiliation.value = current.user.institution?.name || '';}
+    else fillProfile(form);
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (form.elements.updates.checked && !form.elements.email.value.trim()) {
         status('Enter an email address to receive organising updates.', true); form.elements.email.focus(); return;
       }
       const button = form.querySelector('button[type="submit"]'); button.disabled = true;
-      status('Saving your signature and checking your research record…');
+      status('Saving your signature…');
       try {
         const result = await request('signatures', { method: 'POST', body: JSON.stringify({
           name: form.elements.name.value.trim(), affiliation: form.elements.affiliation.value.trim(),
@@ -298,6 +349,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
           return;
         }
       }
+      if (emailToken !== null) { showEmailConfirmation(); return; }
       if (bridge && current.user) { await returnToLetter(); return; }
       if (!current.user) {
         resetLookup();

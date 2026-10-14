@@ -7,6 +7,40 @@ import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { fixtureActivities, fixturePapers, fixtureCitationAuthors, fixtureBibliography } from './invitations.fixtures.mjs';
 
+test('Cloudflare email binding and D1 support verification links without publishing before consent',async t=>{
+  const bundle=await build({entryPoints:[fileURLToPath(new URL('./worker.mjs',import.meta.url))],bundle:true,write:false,format:'esm',platform:'neutral',external:['node:*']});
+  const origin='http://localhost:8766';
+  const mf=new Miniflare(convertV4MiniflareOptions({name:'email-signing-test',modules:true,script:bundle.outputFiles[0].text,
+    compatibilityDate:'2026-09-29',compatibilityFlags:['nodejs_compat'],
+    bindings:{APP_ORIGIN:origin,ORCID_ENV:'sandbox',EMAIL_SIGNIN_ENABLED:'true',EMAIL_FROM:'sign@example.org'},
+    email:{send_email:[{name:'EMAIL',allowed_sender_addresses:['sign@example.org']}]},
+    d1Databases:{DB:'email-signatures-test'},outboundService:async request=>{
+      assert.equal(new URL(request.url).hostname,'api.ror.org');
+      return Response.json({number_of_results:1,items:[{id:'https://ror.org/013meh722',status:'active',types:['education'],domains:['cam.ac.uk'],names:[{types:['ror_display'],value:'University of Cambridge'}]}]});
+    }}));
+  t.after(()=>mf.dispose());const db=await mf.getD1Database('DB');
+  const sql=readdirSync(new URL('./migrations/',import.meta.url)).sort().map(f=>readFileSync(new URL('./migrations/'+f,import.meta.url),'utf8')).join('\n');
+  for(const statement of sql.replace(/--[^\n]*/g,'').split(';').filter(s=>s.trim()))await db.prepare(statement).run();
+  const post=(path,data,headers={})=>mf.dispatchFetch(origin+'/letter/api/'+path,{method:'POST',headers:{Origin:origin,'X-Letter-Request':'1','Content-Type':'application/json',...headers},body:JSON.stringify(data)});
+  const sent=await post('auth/email/start',{email:'fixture@cam.ac.uk'});assert.equal(sent.status,200,await sent.clone().text());
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM email_challenges').first()).n,1);
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM signatures').first()).n,0);
+  // The native binding captures the email locally. Supply a known token hash to
+  // exercise the remaining D1/auth flow without coupling to its outbox internals.
+  const token=randomBytes(32).toString('base64url');await db.prepare('UPDATE email_challenges SET token_hash=?').bind(createHash('sha256').update(token).digest('hex')).run();
+  const verified=await post('auth/email/verify',{token});assert.equal(verified.status,200,await verified.clone().text());
+  assert.equal((await post('auth/email/verify',{token})).status,400);
+  const cookie=verified.headers.getSetCookie()[0].split(';')[0];
+  const session=await(await mf.dispatchFetch(origin+'/letter/api/session',{headers:{Cookie:cookie}})).json();
+  assert.equal(session.user.method,'email');assert.equal(session.user.email,'fixture@cam.ac.uk');
+  const payload={name:'Fixture Researcher',affiliation:'Fixture',email:'',updates:false,consent:false,letterHash:session.letter.hash};
+  const headers={Cookie:cookie,'X-CSRF-Token':session.csrf};
+  assert.equal((await post('signatures',payload,headers)).status,400);
+  assert.equal((await post('signatures',{...payload,consent:true},headers)).status,201);
+  assert.equal((await db.prepare('SELECT email FROM signatures').first()).email,'fixture@cam.ac.uk');
+  assert.deepEqual(await(await mf.dispatchFetch(origin+'/letter/api/signatures')).json(),[]);
+});
+
 test('Cloudflare runtime publishes authenticated signatures, keeps sandbox data private and preserves idempotency', async t => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('./worker.mjs', import.meta.url))],
     bundle: true, write: false, format: 'esm', platform: 'neutral', external: ['node:*'] });

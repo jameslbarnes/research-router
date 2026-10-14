@@ -14,7 +14,7 @@ export function createSignatories({ db, fetchImpl, providerJSON, now }) {
   const savedCitations = row => row.citation_name === row.name && row.citations ? JSON.parse(row.citations) : null;
   return async () => {
     let current = await rows();
-    const stale = current.filter(row => row.citation_name !== row.name || row.next_check_at <= now()).slice(0, 50);
+    const stale = current.filter(row => row.orcid && (row.citation_name !== row.name || row.next_check_at <= now())).slice(0, 50);
     if (stale.length) {
       const owner = randomBytes(12).toString('hex');
       const lock = await db.prepare(`INSERT INTO discovery_locks (lock_key, owner, expires_at) VALUES ('public-signers', ?, ?)
@@ -45,7 +45,7 @@ export function createSignatories({ db, fetchImpl, providerJSON, now }) {
         current = await rows();
       }
     }
-    return current.map(row => ({ name: row.name, affiliation: row.affiliation, orcid: row.orcid, citations: savedCitations(row) }))
+    return current.map(row => ({ name: row.name, affiliation: row.affiliation, orcid: row.orcid || null, citations: savedCitations(row) }))
       .sort((a, b) => (b.citations?.count ?? -1) - (a.citations?.count ?? -1));
   };
 }

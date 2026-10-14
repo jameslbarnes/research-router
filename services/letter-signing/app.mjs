@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual, createCipheriv, createDeciphe
 import { createInvitations } from './invitations.mjs';
 import { createSignatories } from './signatories.mjs';
 import { signatureRowFor } from './signature-records.mjs';
+import { createEmailAuth, academicAddress } from './email-auth.mjs';
 
 const API = '/letter/api';
 const SIGN_PAGE = '/letter/sign/';
@@ -28,6 +29,9 @@ export function configFromEnv(env = process.env) {
   const key = env.TOKEN_ENCRYPTION_KEY || '';
   if (key && !/^[a-f0-9]{64}$/i.test(key)) throw new Error('TOKEN_ENCRYPTION_KEY must be 64 hexadecimal characters.');
   const configured = Boolean(env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET && key);
+  const emailEnabled = env.EMAIL_SIGNIN_ENABLED === 'true';
+  const emailFrom = env.EMAIL_FROM || '';
+  if (emailEnabled && !academicAddress(emailFrom)) throw new Error('Email sign-in requires a valid EMAIL_FROM.');
   if (environment === 'production' && !configured) throw new Error('Production requires ORCID credentials and TOKEN_ENCRYPTION_KEY.');
   const publicLetter = new URL(env.PUBLIC_LETTER_URL || '/letter/studies/split-view.html', origin);
   if (publicLetter.username || publicLetter.password || publicLetter.search || publicLetter.hash ||
@@ -39,7 +43,7 @@ export function configFromEnv(env = process.env) {
     throw new Error('PUBLIC_AUDIT_URL must use the letter site origin.');
   }
   return {
-    origin: origin.origin, environment, secure: origin.protocol === 'https:', configured,
+    origin: origin.origin, environment, secure: origin.protocol === 'https:', configured, emailEnabled, emailFrom,
     publicLetterUrl: publicLetter.href, publicAuditUrl: publicAudit.href,
     clientId: env.ORCID_CLIENT_ID || '', clientSecret: env.ORCID_CLIENT_SECRET || '',
     encryptionKey: key ? Buffer.from(key, 'hex') : null,
@@ -147,9 +151,9 @@ export async function researchProfile(config, orcid, fetchImpl = fetch, headers 
     works, workCount: groups.length };
 }
 
-export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.now }) {
+export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.now, sendVerification = null }) {
   const publicOrigin = new URL(config.publicLetterUrl).origin;
-  const inlinePaths = new Set(['session', 'profile', 'auth/exchange', 'auth/logout', 'signatures',
+  const inlinePaths = new Set(['session', 'profile', 'auth/exchange', 'auth/logout', 'auth/email/start', 'auth/email/verify', 'signatures',
     'coauthors', 'coauthors/citations', 'invitations', 'invitations/action'].map(path => `${API}/${path}`));
   const sessionName = config.secure ? '__Host-letter_session' : 'letter_session';
   const flowName = config.secure ? '__Host-letter_oauth' : 'letter_oauth';
@@ -171,8 +175,9 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     if (bearer ? requestOrigin !== publicOrigin : requestOrigin && requestOrigin !== config.origin) return null;
     const value = bearer || cookies(request)[sessionName];
     if (!value || !/^[\w-]{43}$/.test(value)) return null;
-    return await db.prepare(`SELECT sessions.*, identities.orcid, identities.name, identities.environment
-      FROM sessions JOIN identities USING(subject) WHERE session_hash=? AND expires_at>? AND environment=?
+    return await db.prepare(`SELECT sessions.*, identities.orcid, identities.name, identities.environment,
+      email_identities.email AS verified_email, email_identities.institution AS email_institution, email_identities.verified_at
+      FROM sessions JOIN identities USING(subject) LEFT JOIN email_identities USING(subject) WHERE session_hash=? AND expires_at>? AND environment=?
       AND COALESCE(client_origin, ?)=?`).get(hash(value), now(), config.environment, config.origin, bearer ? publicOrigin : config.origin);
   };
   const signature = async subject => await db.prepare(`SELECT name, affiliation, status, submitted_at
@@ -184,6 +189,7 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
   const invitations = createInvitations({ config, db, letter, now, fetchImpl, providerJSON, validOrcid,
     loadEvidence: async user => researchEvidence(config, user.orcid, fetchImpl, now(), await profileHeaders(user.subject)) });
   const signatories = createSignatories({ db, now, fetchImpl, providerJSON });
+  const emailAuth = createEmailAuth({config, db, now, limit, providerJSON, fetchImpl, sendVerification});
   async function limit(bucket, max = 60) {
     const key = hash(bucket);
     const time = now();
@@ -203,14 +209,16 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     await clean();
     if (request.method === 'GET' && path === `${API}/session`) {
       const user = await session(request);
-      return json({ configured: config.configured, environment: config.environment,
+      return json({ configured: config.configured, emailConfigured: emailAuth.enabled, environment: config.environment,
         letter: { title: letter.title, paragraphs: letter.paragraphs, hash: letter.hash, url: config.publicLetterUrl },
-        user: user ? { orcid: user.orcid, name: user.name, url: `${config.issuer}/${user.orcid}` } : null,
+        user: user ? (user.verified_email ? { method: 'email', email: user.verified_email, name: user.name,
+          institution: JSON.parse(user.email_institution) } : { method: 'orcid', orcid: user.orcid, name: user.name, url: `${config.issuer}/${user.orcid}` }) : null,
         csrf: user?.csrf || null, signature: user ? await signature(user.subject) : null });
     }
     if (request.method === 'GET' && path === `${API}/profile`) {
       const user = await session(request);
       if (!user) return error(401, 'Sign in with ORCID to load your research details.');
+      if (!user.orcid) return error(403, 'Public research details are available when signing in with ORCID.');
       if (!await limit(`profile:${user.subject}`, 12)) return error(429, 'Your ORCID details have been requested too often. Please try again in ten minutes.');
       return json(await researchProfile(config, user.orcid, fetchImpl, await profileHeaders(user.subject)));
     }
@@ -266,6 +274,27 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     if ((requestOrigin !== config.origin && !fromInline) || request.headers.get('x-letter-request') !== '1') {
       return error(403, 'Open the letter on this site and try again.');
     }
+    if (path === `${API}/auth/email/start` || path === `${API}/auth/email/verify`) {
+      if (!request.headers.get('content-type')?.startsWith('application/json')) return error(415, 'Refresh this page and try again.');
+      let data;
+      try { const text = await request.text(); if (Buffer.byteLength(text) > 1024) throw new Error();
+        data = JSON.parse(text); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error();
+      } catch { return error(400, 'The sign-in request could not be read. Please try again.'); }
+      if (path.endsWith('/start')) {
+        const result = await emailAuth.start(data, requestOrigin, clientAddress);
+        return result.error ? error(result.status, result.error) : json(result);
+      }
+      const result = await emailAuth.verify(data, requestOrigin, clientAddress);
+      if (result.error) return error(result.status, result.error);
+      const sid = token(), inlineClient = requestOrigin !== config.origin;
+      const oldSession = await session(request);
+      if (oldSession) await db.prepare('DELETE FROM sessions WHERE session_hash=?').run(oldSession.session_hash);
+      await db.prepare('INSERT INTO sessions (session_hash, subject, csrf, expires_at, client_origin) VALUES (?, ?, ?, ?, ?)')
+        .run(hash(sid), result.subject, token(), now() + (inlineClient ? INLINE_TTL : SESSION_TTL), inlineClient ? publicOrigin : null);
+      const response = json(inlineClient ? {token: sid} : {ok: true});
+      if (!inlineClient) response.headers.append('Set-Cookie', cookie(sessionName, sid, SESSION_TTL / 1000));
+      return response;
+    }
     if (path === `${API}/auth/exchange`) {
       if (requestOrigin !== publicOrigin) return error(403, 'Return to the letter to finish signing in.');
       if (!await limit(`exchange:${clientAddress}`)) return error(429, 'Too many sign-in attempts. Please try again in ten minutes.');
@@ -299,7 +328,7 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
       return response;
     }
     const user = await session(request);
-    if (!user) return error(401, 'Your sign-in has expired. Sign in with ORCID again.');
+    if (!user) return error(401, 'Your sign-in has expired. Sign in again to continue.');
     if (!same(request.headers.get('x-csrf-token'), user.csrf)) return error(403, 'Refresh this page and try again.');
     if ([`${API}/coauthors`, `${API}/coauthors/citations`, `${API}/invitations`, `${API}/invitations/action`].includes(path)) {
       const discovering = path === `${API}/coauthors` || path === `${API}/coauthors/citations`;
@@ -313,6 +342,7 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
         data = JSON.parse(body); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(); }
       catch { return error(400, 'The invitation could not be read. Refresh this page and try again.'); }
       if (discovering) {
+        if (!user.orcid) return json({candidates: [], status: 'unavailable', citationLookup: {status: 'unavailable'}});
         const citations = path === `${API}/coauthors/citations`;
         if (!await limit(`${citations ? 'citations' : 'coauthors'}:${user.subject}`, 6)) return error(429, 'Your coauthors have been requested too often. Try again in ten minutes.');
         const result = await (citations ? invitations.enrich(user) : invitations.discover(user));
@@ -359,7 +389,7 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     if (data.letterHash !== letter.hash) return error(409, 'The letter has changed. Refresh this page and read it before signing.');
     if (data.consent !== true) return error(400, 'Confirm that you agree to the letter before adding your name.');
     const field = (name, max) => typeof data[name] === 'string' && data[name].length <= max && !/[\u0000-\u001f\u007f]/.test(data[name]) ? data[name].trim() : null;
-    const name = field('name', 160), affiliation = field('affiliation', 240), email = field('email', 254);
+    const name = field('name', 160), affiliation = field('affiliation', 240), email = user.verified_email || field('email', 254);
     if (!name) return error(400, 'Enter your name as you want it to appear.');
     if (affiliation === null) return error(400, 'Keep your affiliation or field under 240 characters.');
     if (email === null || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return error(400, 'Enter a valid email address or leave the email field empty.');
@@ -368,8 +398,9 @@ export function createApp({ config, db, letter, fetchImpl = fetch, now = Date.no
     const existing = await signature(user.subject);
     if (existing) return json({ signature: existing });
     const submittedAt = now();
-    const evidence = { profile: `${config.issuer}/${user.orcid}`,
-      publication: { method: 'orcid-authentication-v1', published_at: submittedAt } };
+    const evidence = user.verified_email ? { institution: JSON.parse(user.email_institution), email_verified_at: user.verified_at,
+      publication: { method: 'academic-email-verification-v1', published_at: submittedAt } } :
+      { profile: `${config.issuer}/${user.orcid}`, publication: { method: 'orcid-authentication-v1', published_at: submittedAt } };
     // The authenticated session supplies the identity. Client-supplied ORCID values are ignored.
     // A unique key makes a retried or concurrent submission idempotent.
     const inserted = await db.prepare(`INSERT OR IGNORE INTO signatures
