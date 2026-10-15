@@ -30,7 +30,8 @@ export default {
         }
         return asset;
       }
-      const handler = createApp({ config, db: d1Adapter(env.DB), letter });
+      const handler = createApp({ config, db: d1Adapter(env.DB), letter,
+        sendVerification: env.EMAIL ? message => env.EMAIL.send(message) : null });
       return await handler(request, request.headers.get('CF-Connecting-IP') || 'local');
     } catch {
       // Never log OAuth callbacks, tokens, emails or request bodies.

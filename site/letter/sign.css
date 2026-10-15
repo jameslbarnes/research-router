@@ -33,6 +33,7 @@
 .orcid-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;border:1px solid #879287;border-radius:4px;background:#fffefa;color:#17271f;padding:13px 20px;min-height:48px;text-decoration:none}
 .orcid-button img,.orcid-record img{width:24px;height:24px;flex-shrink:0}
 .orcid-button:hover{border-color:#254839;background:#f3f4ee}
+.sign-alternative{border-top:1px solid var(--sign-rule);margin:24px 0;padding-top:24px}
 .sign-small{font-size:13px;line-height:1.65;color:var(--sign-muted)}
 [data-signing] .sign-help{margin-top:18px;font-size:13px;color:var(--sign-muted)}
 .sign-status{font-size:14px;line-height:1.6;overflow-wrap:anywhere}

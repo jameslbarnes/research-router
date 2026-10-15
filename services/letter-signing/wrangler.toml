@@ -5,6 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
+[observability]
+enabled = true
+[observability.traces]
+enabled = true
+
 [build]
 command = "node build.mjs"
 watch_dir = ["../../site/letter/index.html", "../../site/letter/sign", "../../site/letter/sign.js", "../../site/letter/sign.css", "../../site/letter/invitations.js", "../../site/letter/hosting.js", "app.mjs", "invitations.mjs", "citations.mjs", "signatories.mjs", "screening.mjs"]
@@ -17,6 +22,12 @@ run_worker_first = true
 [vars]
 APP_ORIGIN = "http://localhost:8766"
 ORCID_ENV = "sandbox"
+EMAIL_SIGNIN_ENABLED = "false"
+EMAIL_FROM = "sign@bargainingforourminds.org"
+
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["sign@bargainingforourminds.org"]
 
 [[d1_databases]]
 binding = "DB"
@@ -39,6 +50,19 @@ APP_ORIGIN = "https://bargaining-letter-signing.jameslbarnes.workers.dev"
 ORCID_ENV = "production"
 PUBLIC_LETTER_URL = "https://bargainingforourminds.org/science/"
 PUBLIC_AUDIT_URL = "https://bargainingforourminds.org/science/check/"
+# Enable only after the sending domain has been onboarded and delivery checked.
+EMAIL_SIGNIN_ENABLED = "true"
+EMAIL_FROM = "sign@bargainingforourminds.org"
+EMAIL_REPLY_TO = "james@bargainingforourminds.org"
+
+[env.production.observability]
+enabled = true
+[env.production.observability.traces]
+enabled = true
+
+[[env.production.send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["sign@bargainingforourminds.org"]
 
 [[env.production.d1_databases]]
 binding = "DB"

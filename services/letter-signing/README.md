@@ -1,6 +1,6 @@
-# ORCID signing on Cloudflare
+# Verified signing on Cloudflare
 
-This Worker requires ORCID authentication before accepting a signature request. It uses Cloudflare D1. New signatures appear immediately after the authenticated researcher confirms and submits the form. Publication records and lookup failures never hold a signature for approval. ORCID authentication confirms control of the record, not academic credentials.
+This Worker requires either ORCID authentication or a verified academic/research email before accepting a signature request. It uses Cloudflare D1. New signatures appear immediately after the authenticated researcher confirms and submits the form. Publication records and lookup failures never hold a signature for approval. ORCID authentication confirms control of the record, not academic credentials.
 
 The letter uses the repository's existing GitHub Pages site, published from the root of `main`. Read [the published letter](https://bargainingforourminds.org/science/) or open [the signing page](https://bargaining-letter-signing.jameslbarnes.workers.dev/letter/sign/).
 
@@ -30,7 +30,7 @@ npm run preview
 
 Open [the local signing page](http://localhost:8766/letter/sign/) or [the selected letter design](http://localhost:8766/letter/studies/split-view.html). Port 8787 is Wrangler; port 8766 serves the static letter and proxies its API calls. The earlier static-only preview at port 8765 cannot perform OAuth.
 
-Without credentials the page shows an honest setup message and disables sign-in. There is no email fallback and no client-side substitute for authentication.
+Without ORCID credentials the ORCID button is disabled. Academic email is enabled separately after configuring transactional email delivery. Neither route has a client-side substitute for authentication.
 
 ## ORCID clients
 
@@ -63,7 +63,7 @@ The `production` environment in `wrangler.toml` contains:
 
 The `signingUrl` in `site/letter/hosting.js` points to the production `/letter/sign/` bridge. This is public configuration and contains no credentials. “Add your name” scrolls to the inline form. The old GitHub signing URL returns visitors to that form. Local previews keep using the local service.
 
-Migrations through `0004_signer_citations.sql` have been applied to the production database. Future authorised deployments use `wrangler deploy --env production`. Apply new migrations with `wrangler d1 migrations apply DB --remote --env production`. The default local configuration keeps `workers_dev` and preview URLs disabled. Never point the sandbox at the production database. See [Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) and [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
+Migrations through `0005_email_signin.sql` are applied to production; migration 0005 was applied on 14 October 2026. Future authorised deployments use `wrangler deploy --env production`. Apply new migrations with `wrangler d1 migrations apply DB --remote --env production`. The default local configuration keeps `workers_dev` and preview URLs disabled. Never point the sandbox at the production database. See [Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) and [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
 
 Production secrets were sent directly to Cloudflare without creating a local credentials file. The token encryption key was generated in memory. Cloudflare holds the only persisted copy; no separate recovery copy was created. Preserve that secret when deploying or moving the service. Replacing it makes previously encrypted tokens unreadable.
 
@@ -84,13 +84,13 @@ node review.mjs withdraw ORCID LETTER_HASH
 
 They operate on the local sandbox by default. `--remote` selects the explicitly configured production environment. A remote approval or withdrawal additionally requires `--confirm-publish` because it changes the public list. Do not run those commands during an unpublished design review.
 
-On submission, the server publishes the signature using the ORCID identity from the authenticated session. The explicit consent checkbox, current-letter check, CSRF and origin checks remain required. Browser-supplied identity and status fields are ignored. No publication provider is called while saving a signature. ORCID authenticates control of the record; the entered name, affiliation and academic credentials are not independently verified.
+On submission, the server publishes the signature using the authenticated ORCID or verified-email identity. The explicit consent checkbox, current-letter check, CSRF and origin checks remain required. Browser-supplied identity and status fields are ignored. No publication provider is called while saving a signature. Authentication confirms control of the record or institutional mailbox; the entered name, affiliation and academic credentials are not independently verified.
 
 The private evidence field records the ORCID profile and publication policy and time. No human review is implied by the internal `approved` status. Duplicate submissions preserve the existing record, including withdrawals and any previous operator decision. Public research lookups still support coauthor discovery and citation ordering; their results do not determine whether a new signature is published.
 
 To publish existing automatic holds under the new policy, run `node publish-pending.mjs --remote --confirm-publish`. It updates only each production signer's latest pending record with no recorded operator review. It preserves the original signed text, submission time and existing evidence, and skips withdrawals, superseded signatures, sandbox records and prior operator decisions. Re-running it has no effect on records already published. The old `screen-pending.mjs` command belongs to the retired publication-screening policy and should not be used to process the queue.
 
-Private contact emails are self-supplied and have not been email-verified. The organising checkbox records a preference; this integration sends no email and does not subscribe anybody to a mailing service. An invitation sender or mailing-list integration will need its own verification and delivery flow.
+Emails entered through the ORCID route remain self-supplied and unverified. The email route stores the address proven by its confirmation link; a submitted form cannot replace that verified address. The organising checkbox records a separate preference and does not subscribe anybody to a mailing service. The only email sent by this Worker is the requested sign-in confirmation.
 
 The existing `site/letter/signatories.json` remains unchanged. The main letter and selected design add approved production records from the API when available. New signatures appear on submission. The browser refreshes the public list after a successful signature.
 
@@ -147,3 +147,29 @@ Run `npm run preview:invitations` to open the [Andrew Miller preview](http://127
 Authentication and signing are simulated in an in-memory database, with no real OAuth credentials or outgoing provider requests. The interface labels this as an unauthenticated preview; Andrew is not added to the public signatories. The separate browser checks retain fictional fixtures and stub sharing and clipboard calls; no messages leave that test page. The preview server binds only to loopback and is not part of the Worker. Testing at phone width checks layout; delivery through iOS or Android messaging apps still needs a physical-device check.
 
 The invitation flow and citation-ranked public signers were deployed to the production Worker on 4 October 2026, with migrations `0003_invitations.sql` and `0004_signer_citations.sql`. The letter revision adds the labor movement paragraph and updates the closing commitment. Its consent hash begins `2a094634023c`. Future revisions must rebuild and deploy the Worker with the matching static letter; deploy the Worker before publishing the updated static scripts.
+
+## Academic email confirmation
+
+The second sign-in option sends a single-use confirmation link. It opens the signing service, where an explicit **Confirm email and continue** action verifies the address. A GET, email preview, or link scanner cannot consume it. The signer then chooses a public name and affiliation and explicitly confirms the unchanged letter and training-permissions commitment. Verification alone creates no signature.
+
+The 256-bit token expires after ten minutes, is hashed at rest, and travels in a URL fragment that the page immediately removes. It does not appear in query strings, HTTP access logs or referrers. Consumption is one atomic conditional D1 delete. Reuse, expiry, wrong origins, and missing consent/CSRF are rejected. The cookie/session and public-list protections used for ORCID also apply. Request limits cover the recipient, source IP and total mail volume. Failed sends invalidate the token and return a recoverable error.
+
+Only the email domain is sent to the [Research Organization Registry](https://ror.readme.io/docs/api-advanced-query). The server checks an exact registered domain or a subdomain boundary against active education, facility, nonprofit, healthcare or government organizations; fuzzy name matches and company domains are not accepted. A registry match plus mailbox verification confirms control of an institutional address, not a job title or academic credentials. Unrecognised domains and registry outages offer ORCID as the alternative. Positive matches are cached for a day; negative matches for an hour. This depends on registry coverage.
+
+Academic email identities use a separate `email:<hash>` subject and do not automatically merge with an ORCID account whose contact email was never verified. Public records contain only the chosen name, affiliation, `orcid: null`, and citation metadata if any. Private email and institution evidence never enter the public feed. The CRM signature checks continue matching the verified signature email; its signatory watcher accepts the null ORCID. Email signers can share a general invitation without a public-coauthor lookup.
+
+For an operator withdrawal, `node review.mjs list` now includes the subject. Pass its `email:<hash>` suffix in place of an ORCID to `show` or `withdraw`; keep `--remote --confirm-publish` for a production status change. Do not put a private email address in command arguments.
+
+### Production activation and delivery
+
+Academic email was enabled on 14 October 2026 as Worker version `13c28c04-8083-4917-8599-9d57fedcb6c5`, after applying migration 0005. Live session, inline CORS, exact signing assets, public-feed privacy, ORCID start/cancellation and email-input checks passed. The letter hash remains `e00cd15e5bfff6c8cc0be04c8a4a6142091280aa9a3e07e4a612b56f55e22835`. All three existing ORCID/encryption secrets were retained. The matching static assets in this change are published by the existing GitHub Pages build from `main`.
+
+The owner completed [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/) onboarding. Its bounce-domain MX/SPF, DKIM and existing DMARC records were verified through public DNS; the existing Google MX records remain intact. The production `EMAIL` binding permits only `sign@bargainingforourminds.org` as sender. Confirmation messages use the display name Bargaining for Our Minds and `EMAIL_REPLY_TO = "james@bargainingforourminds.org"` for questions.
+
+One explicitly authorized delivery test was accepted by the native binding and received by the owner in Gmail's spam folder. This proves delivery to that mailbox, not inbox placement or delivery to an academic mailbox. The final template adds sender identification and a reply address; its real-world placement has not been retested. The form tells signers to check both inbox and spam. No public test signature was created.
+
+The deployment login has Workers Scripts Write, D1 Write and Email Sending Write, but Email Sending list/settings calls still return authentication errors (10000/2036). This does not prevent the verified native binding from sending. Future settings or billing changes may need the owner dashboard; do not add a paid subscription without authorization. Keep Google mail routing intact. To disable the email option, set the production `EMAIL_SIGNIN_ENABLED` to `"false"` and redeploy; ORCID remains available.
+
+`npm run preview:email` offers an isolated in-memory preview at http://localhost:8876/letter/sign/ with a local test inbox. Use `researcher@cam.ac.uk`. It mocks the institution lookup, captures email without sending, and creates sandbox-only signatures. It cannot access production data. Browser review is still needed when a connected browser is available.
+
+Validation: `npm test`, `npm run test:worker`, and a production-targeted `wrangler deploy --dry-run` cover identity verification, single use/expiry, unknown institutions and lookalikes, delivery failure, limits, privacy, consent, sandbox isolation, preserved withdrawals, the native email binding and D1 runtime. These checks do not prove delivery to a real academic mailbox.
