@@ -12,7 +12,7 @@ test('Cloudflare email binding and D1 support verification links without publish
   const origin='http://localhost:8766';
   const mf=new Miniflare(convertV4MiniflareOptions({name:'email-signing-test',modules:true,script:bundle.outputFiles[0].text,
     compatibilityDate:'2026-09-29',compatibilityFlags:['nodejs_compat'],
-    bindings:{APP_ORIGIN:origin,ORCID_ENV:'sandbox',EMAIL_SIGNIN_ENABLED:'true',EMAIL_FROM:'sign@example.org'},
+    bindings:{APP_ORIGIN:origin,ORCID_ENV:'sandbox',EMAIL_SIGNIN_ENABLED:'true',EMAIL_FROM:'sign@example.org',EMAIL_REPLY_TO:'organiser@example.org'},
     email:{send_email:[{name:'EMAIL',allowed_sender_addresses:['sign@example.org']}]},
     d1Databases:{DB:'email-signatures-test'},outboundService:async request=>{
       assert.equal(new URL(request.url).hostname,'api.ror.org');

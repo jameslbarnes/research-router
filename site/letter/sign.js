@@ -163,7 +163,7 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
       '<button class="orcid-button" type="button"><img alt="" width="24" height="24"><span>Continue with ORCID</span></button>' +
       '<p class="sign-help">Connect your research record. No email address is required.</p>' +
       '<div class="sign-alternative"><button class="orcid-button" data-email-login type="button">Continue with academic email</button>' +
-      '<p class="sign-help">We’ll send a code to your institutional email. Your address stays private.</p></div>' +
+      '<p class="sign-help">We will send a confirmation link to your institutional email. Your address stays private.</p></div>' +
       '<p class="sign-small">You’ll review your details and confirm the letter before your name is published.</p>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p><button class="sign-retry" type="button" hidden>Try again</button>';
     environment();
@@ -185,21 +185,21 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     }
   }
   function showEmail() {
-    root.innerHTML = '<p>Use an email address at your academic or research institution. We?ll send you a confirmation link.</p>' +
+    root.innerHTML = '<p>Use an email address at your academic or research institution. We will send you a confirmation link.</p>' +
       '<form class="sign-fields" data-email-start><div class="sign-field"><label for="academic-email">Academic email address</label>' +
       '<input id="academic-email" name="email" type="email" autocomplete="email" maxlength="254" required></div>' +
       '<button class="sign-submit" type="submit">Send confirmation link</button></form>' +
-      '<p class="sign-small sign-help">We check the institutional domain against the Research Organization Registry. If we can?t recognise your institution, you can still use ORCID. Your email will never appear on the public letter.</p>' +
+      '<p class="sign-small sign-help">Use ORCID if your institutional address is not recognised. Your email will never appear on the public letter.</p>' +
       '<p data-status class="sign-status" role="status" aria-live="polite"></p><button class="sign-retry" data-email-back type="button">Back to sign-in options</button>';
     environment();
     const form = root.querySelector('form');
     root.querySelector('[data-email-back]').addEventListener('click', () => showLogin());
     form.addEventListener('submit', async event => {
-      event.preventDefault(); const button = form.querySelector('button'); button.disabled = true; status('Checking your institution and sending a link?');
+      event.preventDefault(); const button = form.querySelector('button'); button.disabled = true; status('Checking your institution and sending a link...');
       try {
         const email = form.elements.email.value.trim();
         await request('auth/email/start', {method: 'POST', body: JSON.stringify({email})});
-        form.hidden = true; status('Check your inbox at ' + email + '. Follow the confirmation link within ten minutes to review and sign the letter. Check your spam folder if it hasn?t arrived.');
+        form.hidden = true; status('Check your inbox and spam folder at ' + email + ' for a message from Bargaining for Our Minds (sign@bargainingforourminds.org). Follow the confirmation link within ten minutes to review and sign the letter.');
         const again = document.createElement('button'); again.type = 'button'; again.className = 'sign-retry'; again.textContent = 'Use another address or request a new link';
         again.addEventListener('click', showEmail); root.append(again);
       } catch(err) {status(err.message, true); button.disabled = false;}
@@ -207,11 +207,11 @@ var SIGN_EMAIL = "barnes.james@gmail.com";
     form.elements.email.focus();
   }
   function showEmailConfirmation() {
-    root.innerHTML = '<p>Confirm your email address to continue. You?ll review your details and the letter before submitting your signature.</p>' +
+    root.innerHTML = '<p>Confirm your email address to continue. You will review your details and the letter before submitting your signature.</p>' +
       '<button class="sign-submit" type="button">Confirm email and continue</button><p data-status class="sign-status" role="status" aria-live="polite"></p>';
     const button = root.querySelector('button');
     button.addEventListener('click', async () => {
-      button.disabled = true; status('Confirming your email?');
+      button.disabled = true; status('Confirming your email...');
       try {
         await request('auth/email/verify', {method: 'POST', body: JSON.stringify({token: emailToken})});
         emailToken = null; resetLookup(); await load();

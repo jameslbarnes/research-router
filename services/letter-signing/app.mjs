@@ -32,6 +32,8 @@ export function configFromEnv(env = process.env) {
   const emailEnabled = env.EMAIL_SIGNIN_ENABLED === 'true';
   const emailFrom = env.EMAIL_FROM || '';
   if (emailEnabled && !academicAddress(emailFrom)) throw new Error('Email sign-in requires a valid EMAIL_FROM.');
+  const emailReplyTo = env.EMAIL_REPLY_TO || '';
+  if (emailReplyTo && !academicAddress(emailReplyTo)) throw new Error('EMAIL_REPLY_TO must be a valid email address.');
   if (environment === 'production' && !configured) throw new Error('Production requires ORCID credentials and TOKEN_ENCRYPTION_KEY.');
   const publicLetter = new URL(env.PUBLIC_LETTER_URL || '/letter/studies/split-view.html', origin);
   if (publicLetter.username || publicLetter.password || publicLetter.search || publicLetter.hash ||
@@ -43,7 +45,7 @@ export function configFromEnv(env = process.env) {
     throw new Error('PUBLIC_AUDIT_URL must use the letter site origin.');
   }
   return {
-    origin: origin.origin, environment, secure: origin.protocol === 'https:', configured, emailEnabled, emailFrom,
+    origin: origin.origin, environment, secure: origin.protocol === 'https:', configured, emailEnabled, emailFrom, emailReplyTo,
     publicLetterUrl: publicLetter.href, publicAuditUrl: publicAudit.href,
     clientId: env.ORCID_CLIENT_ID || '', clientSecret: env.ORCID_CLIENT_SECRET || '',
     encryptionKey: key ? Buffer.from(key, 'hex') : null,

@@ -51,8 +51,9 @@ ORCID_ENV = "production"
 PUBLIC_LETTER_URL = "https://bargainingforourminds.org/science/"
 PUBLIC_AUDIT_URL = "https://bargainingforourminds.org/science/check/"
 # Enable only after the sending domain has been onboarded and delivery checked.
-EMAIL_SIGNIN_ENABLED = "false"
+EMAIL_SIGNIN_ENABLED = "true"
 EMAIL_FROM = "sign@bargainingforourminds.org"
+EMAIL_REPLY_TO = "james@bargainingforourminds.org"
 
 [env.production.observability]
 enabled = true

@@ -64,10 +64,11 @@ export function createEmailAuth({config, db, now, limit, providerJSON, fetchImpl
     await db.prepare('INSERT INTO email_challenges VALUES (?, ?, ?, ?, ?)')
       .run(hash(token), parsed.email, config.origin, JSON.stringify(institution), now() + TTL);
     try {
-      await sendVerification({from: config.emailFrom, to: parsed.email,
+      await sendVerification({from: {email: config.emailFrom, name: 'Bargaining for Our Minds'}, to: parsed.email,
+        ...(config.emailReplyTo ? {replyTo: config.emailReplyTo} : {}),
         subject: 'Confirm your email for Bargaining for Our Minds',
-        text: 'Confirm your academic email and continue:\n' + link.href + '\n\nThis link works once and expires in ten minutes. You will review your details and confirm the letter before your name is published.\n\nIf you did not request this email, you can ignore it. Do not forward this link.',
-        html: '<p><a href="' + link.href + '">Confirm your email and continue</a></p><p>This link works once and expires in ten minutes. You will review your details and confirm the letter before your name is published.</p><p>If you did not request this email, you can ignore it. Do not forward this link.</p>'});
+        text: 'You requested to sign the Bargaining for Our Minds open letter. Confirm your academic email and continue:\n' + link.href + '\n\nThis link works once and expires in ten minutes. You will review your details and confirm the letter before your name is published.\n\nIf you did not request this email, you can ignore it. Do not forward this link.' + (config.emailReplyTo ? '\n\nQuestions? Reply to this email to reach James Barnes.' : ''),
+        html: '<p>You requested to sign the Bargaining for Our Minds open letter.</p><p><a href="' + link.href + '">Confirm your email and continue</a></p><p>This link works once and expires in ten minutes. You will review your details and confirm the letter before your name is published.</p><p>If you did not request this email, you can ignore it. Do not forward this link.</p>' + (config.emailReplyTo ? '<p>Questions? Reply to this email to reach James Barnes.</p>' : '')});
     } catch {
       await db.prepare('DELETE FROM email_challenges WHERE token_hash=?').run(hash(token));
       return failure(503, 'The verification email could not be sent. Try again later, or continue with ORCID.');

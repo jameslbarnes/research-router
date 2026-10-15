@@ -84,7 +84,7 @@ node review.mjs withdraw ORCID LETTER_HASH
 
 They operate on the local sandbox by default. `--remote` selects the explicitly configured production environment. A remote approval or withdrawal additionally requires `--confirm-publish` because it changes the public list. Do not run those commands during an unpublished design review.
 
-On submission, the server publishes the signature using the ORCID identity from the authenticated session. The explicit consent checkbox, current-letter check, CSRF and origin checks remain required. Browser-supplied identity and status fields are ignored. No publication provider is called while saving a signature. ORCID authenticates control of the record; the entered name, affiliation and academic credentials are not independently verified.
+On submission, the server publishes the signature using the authenticated ORCID or verified-email identity. The explicit consent checkbox, current-letter check, CSRF and origin checks remain required. Browser-supplied identity and status fields are ignored. No publication provider is called while saving a signature. Authentication confirms control of the record or institutional mailbox; the entered name, affiliation and academic credentials are not independently verified.
 
 The private evidence field records the ORCID profile and publication policy and time. No human review is implied by the internal `approved` status. Duplicate submissions preserve the existing record, including withdrawals and any previous operator decision. Public research lookups still support coauthor discovery and citation ordering; their results do not determine whether a new signature is published.
 
@@ -160,14 +160,15 @@ Academic email identities use a separate `email:<hash>` subject and do not autom
 
 For an operator withdrawal, `node review.mjs list` now includes the subject. Pass its `email:<hash>` suffix in place of an ORCID to `show` or `withdraw`; keep `--remote --confirm-publish` for a production status change. Do not put a private email address in command arguments.
 
-### Deployment status and order
+### Production activation and delivery
 
-The backend was deployed on 14 October 2026 as Worker version `5ea86f6c-683d-409d-aa8f-8662cd3bc6d1`, with migration 0005 applied and `EMAIL_SIGNIN_ENABLED = "false"`. Live session, inline CORS, signing assets, public-feed privacy, and ORCID start/cancellation checks passed. The letter hash remains `e00cd15e5bfff6c8cc0be04c8a4a6142091280aa9a3e07e4a612b56f55e22835`. All three existing ORCID/encryption secrets were retained. The GitHub Pages email option is not yet published.
+Academic email was enabled on 14 October 2026 as Worker version `13c28c04-8083-4917-8599-9d57fedcb6c5`, after applying migration 0005. Live session, inline CORS, exact signing assets, public-feed privacy, ORCID start/cancellation and email-input checks passed. The letter hash remains `e00cd15e5bfff6c8cc0be04c8a4a6142091280aa9a3e07e4a612b56f55e22835`. All three existing ORCID/encryption secrets were retained. The matching static assets in this change are published by the existing GitHub Pages build from `main`.
 
-The deployment login has Workers Scripts Write, D1 Write and Email Sending Write, but Email Sending list/settings and DNS-preview calls still return authentication errors (10000/2036). The dashboard onboarding step has been requested from the owner. Sending status and account billing could not be read, so no subscription or sender DNS changes have been made.
+The owner completed [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/) onboarding. Its bounce-domain MX/SPF, DKIM and existing DMARC records were verified through public DNS; the existing Google MX records remain intact. The production `EMAIL` binding permits only `sign@bargainingforourminds.org` as sender. Confirmation messages use the display name Bargaining for Our Minds and `EMAIL_REPLY_TO = "james@bargainingforourminds.org"` for questions.
 
-1. Onboard `bargainingforourminds.org` for [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/) and verify its sender DNS. Check the account sending status and plan; do not add a paid subscription without authorization. Use the restricted `EMAIL` binding and `sign@bargainingforourminds.org`; preserve the existing Google MX records and apex SPF.
-2. Check delivery with an owner-authorized academic test mailbox, enable `EMAIL_SIGNIN_ENABLED`, and deploy the Worker. Publish the static assets from GitHub Pages only when the backend is ready. Confirm the exact deployed source and production status.
+One explicitly authorized delivery test was accepted by the native binding and received by the owner in Gmail's spam folder. This proves delivery to that mailbox, not inbox placement or delivery to an academic mailbox. The final template adds sender identification and a reply address; its real-world placement has not been retested. The form tells signers to check both inbox and spam. No public test signature was created.
+
+The deployment login has Workers Scripts Write, D1 Write and Email Sending Write, but Email Sending list/settings calls still return authentication errors (10000/2036). This does not prevent the verified native binding from sending. Future settings or billing changes may need the owner dashboard; do not add a paid subscription without authorization. Keep Google mail routing intact. To disable the email option, set the production `EMAIL_SIGNIN_ENABLED` to `"false"` and redeploy; ORCID remains available.
 
 `npm run preview:email` offers an isolated in-memory preview at http://localhost:8876/letter/sign/ with a local test inbox. Use `researcher@cam.ac.uk`. It mocks the institution lookup, captures email without sending, and creates sandbox-only signatures. It cannot access production data. Browser review is still needed when a connected browser is available.
 
