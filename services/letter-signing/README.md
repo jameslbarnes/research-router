@@ -63,7 +63,7 @@ The `production` environment in `wrangler.toml` contains:
 
 The `signingUrl` in `site/letter/hosting.js` points to the production `/letter/sign/` bridge. This is public configuration and contains no credentials. “Add your name” scrolls to the inline form. The old GitHub signing URL returns visitors to that form. Local previews keep using the local service.
 
-Migrations through `0004_signer_citations.sql` were previously applied to production. The new `0005_email_signin.sql` must be applied before deploying the academic-email implementation. Future authorised deployments use `wrangler deploy --env production`. Apply new migrations with `wrangler d1 migrations apply DB --remote --env production`. The default local configuration keeps `workers_dev` and preview URLs disabled. Never point the sandbox at the production database. See [Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) and [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
+Migrations through `0005_email_signin.sql` are applied to production; migration 0005 was applied on 14 October 2026. Future authorised deployments use `wrangler deploy --env production`. Apply new migrations with `wrangler d1 migrations apply DB --remote --env production`. The default local configuration keeps `workers_dev` and preview URLs disabled. Never point the sandbox at the production database. See [Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/) and [workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
 
 Production secrets were sent directly to Cloudflare without creating a local credentials file. The token encryption key was generated in memory. Cloudflare holds the only persisted copy; no separate recovery copy was created. Preserve that secret when deploying or moving the service. Replacing it makes previously encrypted tokens unreadable.
 
@@ -162,12 +162,12 @@ For an operator withdrawal, `node review.mjs list` now includes the subject. Pas
 
 ### Deployment status and order
 
-The implementation is prepared with `EMAIL_SIGNIN_ENABLED = "false"`. It is not activated by this configuration alone. The production Worker remains `bargaining-letter-signing`, D1 remains `bargaining-letter-signing-production`, and the existing ORCID secrets/encryption key must be preserved.
+The backend was deployed on 14 October 2026 as Worker version `5ea86f6c-683d-409d-aa8f-8662cd3bc6d1`, with migration 0005 applied and `EMAIL_SIGNIN_ENABLED = "false"`. Live session, inline CORS, signing assets, public-feed privacy, and ORCID start/cancellation checks passed. The letter hash remains `e00cd15e5bfff6c8cc0be04c8a4a6142091280aa9a3e07e4a612b56f55e22835`. All three existing ORCID/encryption secrets were retained. The GitHub Pages email option is not yet published.
 
-1. Authenticate a deployment connection with Workers Scripts Write, D1 Write and Email Sending access to the existing account. Check the account sending status and plan; do not add a paid subscription without authorization.
-2. Onboard `bargainingforourminds.org` for [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/) and verify its sender DNS. Use the restricted `EMAIL` binding and `sign@bargainingforourminds.org`; keep existing mail routing intact.
-3. Apply migration 0005 to production, then deploy the Worker with the feature disabled. Existing ORCID must continue working.
-4. Check delivery with an owner-authorized academic test mailbox, enable `EMAIL_SIGNIN_ENABLED`, and deploy the Worker. Publish the static assets from GitHub Pages only when the backend is ready. Confirm the exact deployed source and production status.
+The deployment login has Workers Scripts Write, D1 Write and Email Sending Write, but Email Sending list/settings and DNS-preview calls still return authentication errors (10000/2036). The dashboard onboarding step has been requested from the owner. Sending status and account billing could not be read, so no subscription or sender DNS changes have been made.
+
+1. Onboard `bargainingforourminds.org` for [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/) and verify its sender DNS. Check the account sending status and plan; do not add a paid subscription without authorization. Use the restricted `EMAIL` binding and `sign@bargainingforourminds.org`; preserve the existing Google MX records and apex SPF.
+2. Check delivery with an owner-authorized academic test mailbox, enable `EMAIL_SIGNIN_ENABLED`, and deploy the Worker. Publish the static assets from GitHub Pages only when the backend is ready. Confirm the exact deployed source and production status.
 
 `npm run preview:email` offers an isolated in-memory preview at http://localhost:8876/letter/sign/ with a local test inbox. Use `researcher@cam.ac.uk`. It mocks the institution lookup, captures email without sending, and creates sandbox-only signatures. It cannot access production data. Browser review is still needed when a connected browser is available.
 
